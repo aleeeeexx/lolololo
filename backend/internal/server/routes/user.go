@@ -102,6 +102,11 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 当前用户可调用的模型 ID（与 /v1/models 口径一致，不依赖展示开关）
+		if h.SupportedModels != nil {
+			authenticated.GET("/supported-models", h.SupportedModels.List)
+		}
+
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())

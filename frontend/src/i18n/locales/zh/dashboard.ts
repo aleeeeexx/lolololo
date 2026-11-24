@@ -655,6 +655,23 @@ export default {
     }
   },
 
+  // Supported models (user-facing copyable catalog)
+  supportedModels: {
+    title: '支持的模型',
+    description: '查看你当前账号可调用的模型 ID，点击即可复制。列表按可绑定分组汇总，口径与 API 的 /v1/models 一致。',
+    searchPlaceholder: '搜索模型名称',
+    count: '共 {count} 个模型',
+    empty: '暂无可以列出的模型。如果你还没有可绑定的分组，或这些分组按当前已保存配置没有可调用的模型，这里会是空的。',
+    noSearchResult: '没有匹配的模型',
+    loadFailed: '加载模型列表失败',
+    unavailable: '当前站点未开放模型目录或可用渠道，暂时无法列出支持的模型。',
+    sourcePlaza: '列表来自你当前可见分组中的模型，与模型广场同源。',
+    sourceChannels: '列表来自你当前可访问渠道中的支持模型。',
+    sourceHint: '列表按你可绑定分组汇总，口径与请求侧 /v1/models 一致（已保存配置，不会请求上游）。',
+    copyModelId: '复制模型 ID {model}',
+    copied: '已复制 {model}'
+  },
+
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
     title: '模型广场',

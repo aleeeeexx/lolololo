@@ -650,6 +650,23 @@ export default {
     }
   },
 
+  // Supported models (user-facing copyable catalog)
+  supportedModels: {
+    title: 'Supported Models',
+    description: 'View the model IDs your account can call and click to copy them. The list is aggregated from groups you can bind, using the same rules as /v1/models.',
+    searchPlaceholder: 'Search model IDs',
+    count: '{count} models',
+    empty: 'No models to list. This is empty if you have no bindable groups, or if those groups have no callable models in the saved configuration.',
+    noSearchResult: 'No matching models',
+    loadFailed: 'Failed to load the model list',
+    unavailable: 'This site has not enabled a model catalog or available channels, so supported models cannot be listed right now.',
+    sourcePlaza: 'This list comes from the models in groups currently visible to you, using the same source as Model Plaza.',
+    sourceChannels: 'This list comes from the supported models in channels currently available to you.',
+    sourceHint: 'This list is aggregated from groups you can bind, using the same /v1/models rules and saved configuration only. It does not call upstream providers.',
+    copyModelId: 'Copy model ID {model}',
+    copied: 'Copied {model}'
+  },
+
   // Model Plaza (public group/model pricing showcase)
   modelPlaza: {
     title: 'Model Plaza',
