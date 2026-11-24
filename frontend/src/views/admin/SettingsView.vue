@@ -7938,7 +7938,7 @@
                       v-model="form.payment_product_name_prefix"
                       type="text"
                       class="input"
-                      placeholder="Sub2API"
+                      placeholder="DubDub AI中转站"
                     />
                   </div>
                   <div>
@@ -7960,7 +7960,7 @@
                       class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300"
                     >
                       {{
-                        (form.payment_product_name_prefix || "Sub2API") +
+                        (form.payment_product_name_prefix || DEFAULT_SITE_NAME) +
                         " 100 " +
                         (form.payment_product_name_suffix || "CNY")
                       }}
@@ -9019,6 +9019,7 @@ import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSi
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { formatBalanceRechargeMultiplier } from "@/utils/rechargeBonus";
 import { useAppStore } from "@/stores";
+import { DEFAULT_SITE_NAME, DEFAULT_SITE_SUBTITLE } from '@/constants/branding'
 import { useAdminSettingsStore } from "@/stores/adminSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
@@ -9773,9 +9774,9 @@ const form = reactive<SettingsForm>({
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
-  site_name: "Sub2API",
+  site_name: DEFAULT_SITE_NAME,
   site_logo: "",
-  site_subtitle: "Subscription to API Conversion Platform",
+  site_subtitle: DEFAULT_SITE_SUBTITLE,
   api_base_url: "",
   contact_info: "",
   doc_url: "",
@@ -13352,10 +13353,10 @@ watch(
   right: 0.75rem;
   bottom: 0.25rem;
   left: 0.75rem;
-  height: 2px;
-  border-radius: 9999px;
+  height: 1px;
+  border-radius: 0;
   content: "";
-  background: linear-gradient(90deg, #14b8a6, #0ea5e9);
+  background: currentColor;
 }
 
 .settings-tab-icon {

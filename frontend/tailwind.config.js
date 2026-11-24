@@ -5,92 +5,154 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 主色调 - Teal/Cyan 青色系
+        background: 'var(--background)',
+        surface: 'var(--surface)',
+        'surface-deep': 'var(--surface-deep)',
+        foreground: 'var(--foreground)',
+        'foreground-secondary': 'var(--foreground-secondary)',
+        muted: 'var(--muted)',
+        // DEFAULT / named keys are the fluorescent brand tokens.
+        // Numeric scale is ink-olive so existing text-primary-600 links
+        // and focus rings stay olive, never fluorescent green.
         primary: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e'
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)',
+          hover: 'var(--primary-hover)',
+          active: 'var(--primary-active)',
+          50: '#F4F7E3',
+          100: '#E8F0B8',
+          200: '#D4E07A',
+          300: '#C5D46A',
+          400: '#A8B84A',
+          500: '#4D5B00',
+          600: '#4D5B00',
+          700: '#3D4900',
+          800: '#2A3200',
+          900: '#14150B',
+          950: '#0C0D06'
         },
-        // 辅助色 - 深蓝灰
         accent: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+          ink: 'var(--accent-ink)',
+          hover: 'var(--accent-hover)',
+          soft: 'var(--accent-soft)',
+          50: '#F4F7E3',
+          100: '#E8F0B8',
+          200: '#D4E07A',
+          300: '#C5D46A',
+          400: '#A8B84A',
+          500: '#4D5B00',
+          600: '#4D5B00',
+          700: '#3D4900',
+          800: '#2A3200',
+          900: '#14150B',
+          950: '#0C0D06'
         },
-        // 深色模式背景
         dark: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+          50: '#F0F0FA',
+          100: '#E4E4EE',
+          200: '#CCCCCC',
+          300: '#CCCCCC',
+          400: '#9B9BA6',
+          500: '#9B9BA6',
+          600: '#252628',
+          700: '#252628',
+          800: '#161618',
+          900: '#0A0A0C',
+          950: '#000000'
+        },
+        gray: {
+          50: '#F6F7F2',
+          100: '#F0F1EB',
+          200: '#E5E8DE',
+          300: '#D3D6CC',
+          400: '#A8AB9F',
+          500: '#73766B',
+          600: '#474B40',
+          700: '#3A3D34',
+          800: '#2A2C26',
+          900: '#15160F',
+          950: '#14150B'
         }
+      },
+      borderColor: {
+        DEFAULT: 'var(--border)',
+        strong: 'var(--border-strong)'
+      },
+      borderRadius: {
+        none: '0',
+        sm: 'var(--radius-sm)',
+        DEFAULT: 'var(--radius)',
+        md: 'var(--radius)',
+        lg: 'var(--radius)',
+        xl: 'var(--radius)',
+        '2xl': 'var(--radius)',
+        '3xl': 'var(--radius)',
+        '4xl': 'var(--radius)'
       },
       fontFamily: {
         sans: [
+          'Inter',
+          '"Noto Sans SC"',
+          '"PingFang SC"',
+          '"Microsoft YaHei"',
           'system-ui',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'Segoe UI',
-          'Roboto',
-          'Helvetica Neue',
-          'Arial',
-          'PingFang SC',
-          'Hiragino Sans GB',
-          'Microsoft YaHei',
           'sans-serif'
         ],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+        display: [
+          'Inter',
+          '"Noto Sans SC"',
+          '"PingFang SC"',
+          '"Microsoft YaHei"',
+          'system-ui',
+          'sans-serif'
+        ],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace'
+        ]
       },
       boxShadow: {
-        glass: '0 8px 32px rgba(0, 0, 0, 0.08)',
-        'glass-sm': '0 4px 16px rgba(0, 0, 0, 0.06)',
-        glow: '0 0 20px rgba(20, 184, 166, 0.25)',
-        'glow-lg': '0 0 40px rgba(20, 184, 166, 0.35)',
-        card: '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        'card-hover': '0 10px 40px rgba(0, 0, 0, 0.08)',
-        'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        glass: 'none',
+        'glass-sm': 'none',
+        glow: 'none',
+        'glow-lg': 'none',
+        card: 'none',
+        'card-hover': 'none',
+        'inner-glow': 'none',
+        sm: 'none',
+        DEFAULT: 'none',
+        md: 'none',
+        lg: 'none',
+        xl: 'none',
+        '2xl': 'none'
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-primary': 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-        'gradient-dark': 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-        'gradient-glass':
-          'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-        'mesh-gradient':
-          'radial-gradient(at 40% 20%, rgba(20, 184, 166, 0.12) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%), radial-gradient(at 0% 50%, rgba(20, 184, 166, 0.08) 0px, transparent 50%)'
+        'gradient-primary': 'none',
+        'gradient-dark': 'none',
+        'gradient-glass': 'none',
+        'mesh-gradient': 'none'
+      },
+      maxWidth: {
+        content: '1240px'
+      },
+      transitionDuration: {
+        DEFAULT: '150ms'
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'slide-down': 'slideDown 0.3s ease-out',
-        'slide-in-right': 'slideInRight 0.3s ease-out',
-        'scale-in': 'scaleIn 0.2s ease-out',
+        'fade-in': 'fadeIn 0.15s ease-out',
+        'slide-up': 'slideUp 0.15s ease-out',
+        'slide-down': 'slideDown 0.15s ease-out',
+        'slide-in-right': 'slideInRight 0.15s ease-out',
+        'scale-in': 'scaleIn 0.15s ease-out',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         shimmer: 'shimmer 2s linear infinite',
-        glow: 'glow 2s ease-in-out infinite alternate'
+        glow: 'none'
       },
       keyframes: {
         fadeIn: {
@@ -98,35 +160,28 @@ export default {
           '100%': { opacity: '1' }
         },
         slideUp: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' }
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
         },
         slideDown: {
-          '0%': { opacity: '0', transform: 'translateY(-10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' }
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
         },
         slideInRight: {
-          '0%': { opacity: '0', transform: 'translateX(20px)' },
-          '100%': { opacity: '1', transform: 'translateX(0)' }
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
         },
         scaleIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95)' },
-          '100%': { opacity: '1', transform: 'scale(1)' }
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' }
         },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' }
-        },
-        glow: {
-          '0%': { boxShadow: '0 0 20px rgba(20, 184, 166, 0.25)' },
-          '100%': { boxShadow: '0 0 30px rgba(20, 184, 166, 0.4)' }
         }
       },
       backdropBlur: {
         xs: '2px'
-      },
-      borderRadius: {
-        '4xl': '2rem'
       }
     }
   },
