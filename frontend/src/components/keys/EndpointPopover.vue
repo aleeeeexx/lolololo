@@ -102,6 +102,7 @@ onBeforeUnmount(() => {
           class="cursor-pointer font-mono text-gray-500 decoration-gray-400 decoration-dashed underline-offset-2 hover:text-primary-600 hover:underline focus:text-primary-600 focus:underline focus:outline-none dark:text-gray-400 dark:decoration-gray-500 dark:hover:text-primary-400 dark:focus:text-primary-400"
           role="button"
           tabindex="0"
+          data-test="api-endpoint-url"
           @click="copy(item.endpoint)"
           @keydown.enter.prevent="copy(item.endpoint)"
           @keydown.space.prevent="copy(item.endpoint)"

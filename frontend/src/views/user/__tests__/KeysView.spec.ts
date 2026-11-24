@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
@@ -686,5 +686,140 @@ describe('user KeysView column settings', () => {
       expect(wrapper.get('[data-test="usage"]').text()).toContain('$0.0000')
       consoleError.mockRestore()
     })
+  })
+})
+
+describe('user KeysView API base URL', () => {
+  const originalLocation = window.location
+
+  beforeEach(() => {
+    localStorage.clear()
+    Object.defineProperty(window, 'location', {
+      value: { origin: 'https://site.example.com' },
+      writable: true,
+      configurable: true,
+    })
+
+    listKeys.mockReset()
+    updateKey.mockReset()
+    vi.mocked(keysAPI.create).mockReset()
+    getPublicSettings.mockReset()
+    getDashboardApiKeysUsage.mockReset()
+    getAvailableGroups.mockReset()
+    getUserGroupRates.mockReset()
+    showError.mockReset()
+    showSuccess.mockReset()
+    copyToClipboard.mockReset()
+    isCurrentStep.mockReset()
+    nextStep.mockReset()
+
+    listKeys.mockResolvedValue({
+      items: [createApiKey()],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getPublicSettings.mockResolvedValue({})
+    getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
+    getAvailableGroups.mockResolvedValue([])
+    getUserGroupRates.mockResolvedValue({})
+    isCurrentStep.mockReturnValue(false)
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  it('shows the configured API base URL even when custom endpoints are empty', async () => {
+    getPublicSettings.mockResolvedValue({
+      api_base_url: 'https://api.example.com/v1/',
+      custom_endpoints: [],
+    })
+
+    const wrapper = await mountView()
+    const popover = wrapper.getComponent({ name: 'EndpointPopover' })
+
+    expect(popover.props('apiBaseUrl')).toBe('https://api.example.com/v1')
+    expect(popover.props('customEndpoints')).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('falls back to the current site origin when API base URL is not configured', async () => {
+    getPublicSettings.mockResolvedValue({
+      api_base_url: '  ',
+    })
+
+    const wrapper = await mountView()
+    const popover = wrapper.getComponent({ name: 'EndpointPopover' })
+
+    expect(popover.props('apiBaseUrl')).toBe('https://site.example.com')
+    wrapper.unmount()
+  })
+
+  it('shows the origin fallback while public settings are loading, then the configured URL', async () => {
+    let resolveSettings: (value: unknown) => void = () => {}
+    getPublicSettings.mockImplementation(
+      () => new Promise((resolve) => {
+        resolveSettings = resolve
+      }),
+    )
+
+    const wrapper = mount(KeysView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          DataTable: DataTableStub,
+          Pagination: PaginationStub,
+          BaseDialog: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          Select: SelectStub,
+          SearchInput: SearchInputStub,
+          Icon: IconStub,
+          UseKeyModal: true,
+          BulkEditKeysModal: true,
+          EndpointPopover: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          Teleport: true,
+        },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.getComponent({ name: 'EndpointPopover' }).props('apiBaseUrl')).toBe(
+      'https://site.example.com',
+    )
+
+    resolveSettings({ api_base_url: 'https://api.configured.example' })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.getComponent({ name: 'EndpointPopover' }).props('apiBaseUrl')).toBe(
+      'https://api.configured.example',
+    )
+    expect(wrapper.getComponent({ name: 'UseKeyModal' }).props('baseUrl')).toBe(
+      'https://api.configured.example',
+    )
+    wrapper.unmount()
+  })
+
+  it('keeps the origin fallback when public settings fail to load', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getPublicSettings.mockRejectedValue(new Error('unavailable'))
+
+    const wrapper = await mountView()
+
+    expect(wrapper.getComponent({ name: 'EndpointPopover' }).props('apiBaseUrl')).toBe(
+      'https://site.example.com',
+    )
+    consoleError.mockRestore()
+    wrapper.unmount()
   })
 })

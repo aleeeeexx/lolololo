@@ -66,4 +66,35 @@ describe('EndpointPopover', () => {
     expect(wrapper.text()).toContain('已复制到剪贴板')
     expect(wrapper.find('button[aria-label="已复制到剪贴板"]').exists()).toBe(true)
   })
+
+  it('复制失败时不会切换为已复制提示', async () => {
+    copyToClipboard.mockResolvedValueOnce(false)
+
+    const wrapper = mount(EndpointPopover, {
+      props: {
+        apiBaseUrl: 'https://default.example.com',
+        customEndpoints: [],
+      },
+    })
+
+    await wrapper.find('[data-test="api-endpoint-url"]').trigger('click')
+    await flushPromises()
+
+    expect(copyToClipboard).toHaveBeenCalledWith('https://default.example.com', '已复制')
+    expect(wrapper.text()).toContain('点击可复制此端点')
+    expect(wrapper.text()).not.toContain('已复制到剪贴板')
+    expect(wrapper.find('button[aria-label="点击可复制此端点"]').exists()).toBe(true)
+  })
+
+  it('没有默认地址且没有自定义端点时不渲染', () => {
+    const wrapper = mount(EndpointPopover, {
+      props: {
+        apiBaseUrl: '',
+        customEndpoints: [],
+      },
+    })
+
+    expect(wrapper.find('[data-test="api-endpoint-url"]').exists()).toBe(false)
+    expect(wrapper.text()).toBe('')
+  })
 })
