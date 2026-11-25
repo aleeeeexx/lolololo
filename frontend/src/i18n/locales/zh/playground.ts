@@ -1,6 +1,8 @@
 export default {
   title: '直接用',
   description: '用账户额度在网站里对话、生图，并可把 PDF、TXT 或 Markdown 一起发给模型提问。',
+  clientTip: '网页里用起来方便，但没有 Codex、Claude Code 那样帮你改代码、跑任务的完整能力，效果通常没它们好。日常开发更建议用这些客户端，并把 API 配到本站。{handbookLink}',
+  clientTipLink: '配置步骤见使用手册里的极简示例。',
   remainingBalance: '剩余额度',
   frozenBalance: '冻结',
   lastCost: '本次消耗',

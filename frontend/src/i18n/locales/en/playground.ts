@@ -1,6 +1,8 @@
 export default {
   title: 'Direct Use',
   description: 'Chat and generate images with your account quota, and attach PDF, TXT, or Markdown files to a question.',
+  clientTip: 'Chatting and generating images here is handy for a quick try, but this page does not have the full coding help you get in Codex or Claude Code — like editing files, running tasks, and keeping project context — so results are usually not as good. For everyday development, we recommend Codex or Claude Code with your API pointed at this site. {handbookLink}',
+  clientTipLink: 'See the quick examples in the handbook.',
   remainingBalance: 'Remaining balance',
   frozenBalance: 'Held',
   lastCost: 'This request',

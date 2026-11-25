@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">DubDub AI中转站</title>
-  <desc id="desc">A bold D monogram on a fluorescent green square.</desc>
+  <desc id="desc">A bold, optically centered D monogram on a fluorescent green square.</desc>
   <rect width="512" height="512" rx="51" fill="#DFFD26"/>
-  <path fill="#14150B" fill-rule="evenodd" d="M148 86h140c124 0 204 80 204 170s-80 170-204 170H148V86zm80 72v196h60c76 0 124-46 124-98s-48-98-124-98H228z"/>
+  <path fill="#14150B" fill-rule="evenodd" d="M96 86h140c124 0 204 80 204 170s-80 170-204 170H96V86zm80 72v196h60c76 0 124-46 124-98s-48-98-124-98H176z"/>
 </svg>

@@ -12,6 +12,26 @@
         </button>
       </div>
 
+      <div
+        class="flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-6 text-sky-900 dark:border-sky-800/50 dark:bg-sky-950/30 dark:text-sky-100"
+        data-testid="playground-client-tip"
+        role="note"
+      >
+        <Icon name="infoCircle" size="md" class="mt-0.5 flex-shrink-0 text-sky-500 dark:text-sky-300" />
+        <p>
+          <i18n-t keypath="playground.clientTip" tag="span" scope="global">
+            <template #handbookLink>
+              <router-link
+                :to="{ name: 'Handbook', hash: '#quick-examples' }"
+                class="font-medium underline underline-offset-2 hover:text-sky-700 dark:hover:text-white"
+              >
+                {{ t('playground.clientTipLink') }}
+              </router-link>
+            </template>
+          </i18n-t>
+        </p>
+      </div>
+
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <div class="card p-4">
           <p class="text-xs font-medium text-[color:var(--muted)]">{{ t('playground.remainingBalance') }}</p>
