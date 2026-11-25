@@ -725,6 +725,32 @@ type adminServiceImpl struct {
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	// 分组平台变更后用来失效渠道缓存；可为 nil（缓存会在 TTL 到期后自然重建）
 	channelCacheInvalidator ChannelCacheInvalidator
+	// 分组模型白名单等配置变更后失效网关模型列表缓存；可为 nil。
+	modelsCacheInvalidator AvailableModelsCacheInvalidator
+}
+
+// AvailableModelsCacheInvalidator 失效 GetAvailableModels 的短缓存。
+// 窄接口，对应 GatewayService.InvalidateAvailableModelsCache。
+type AvailableModelsCacheInvalidator interface {
+	InvalidateAvailableModelsCache(groupID *int64, platform string)
+}
+
+// AttachAvailableModelsCacheInvalidator wires the gateway models-list cache
+// invalidator onto an AdminService after construction.
+func AttachAvailableModelsCacheInvalidator(admin AdminService, invalidator AvailableModelsCacheInvalidator) {
+	if impl, ok := admin.(*adminServiceImpl); ok && impl != nil {
+		impl.modelsCacheInvalidator = invalidator
+	}
+}
+
+func (s *adminServiceImpl) invalidateAvailableModelsCache(groupID int64) {
+	if s == nil || s.modelsCacheInvalidator == nil || groupID <= 0 {
+		return
+	}
+	id := groupID
+	// Empty platform clears every cached catalog key for this group, including
+	// composite per-platform GetAvailableModels entries.
+	s.modelsCacheInvalidator.InvalidateAvailableModelsCache(&id, "")
 }
 
 // ChannelCacheInvalidator 失效渠道缓存。

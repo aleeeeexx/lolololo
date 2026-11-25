@@ -70,6 +70,7 @@ func NewPlaygroundHandlerFromDeps(
 
 // Session GET /api/v1/playground/session
 func (h *PlaygroundHandler) Session(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	userID, ok := playgroundUserID(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")

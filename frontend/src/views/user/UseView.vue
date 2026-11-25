@@ -6,7 +6,7 @@
           <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ t('playground.title') }}</h1>
           <p class="mt-1 max-w-3xl text-sm text-[color:var(--muted)]">{{ t('playground.description') }}</p>
         </div>
-        <button type="button" class="btn btn-secondary" :disabled="sessionLoading" @click="loadSession">
+        <button type="button" class="btn btn-secondary" :disabled="sessionLoading" data-testid="playground-refresh-session" @click="loadSession">
           <Icon name="refresh" size="md" :class="sessionLoading ? 'animate-spin' : ''" />
           {{ t('playground.refreshSession') }}
         </button>
@@ -100,11 +100,11 @@
           <div class="flex flex-wrap items-end gap-3 border-b border-gray-100 p-4 dark:border-gray-800">
             <div class="min-w-[14rem] flex-1">
               <label class="input-label">{{ t('playground.group') }}</label>
-              <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" />
+              <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" data-testid="playground-group-select" />
             </div>
             <div class="min-w-[16rem] flex-1">
               <label class="input-label">{{ t('playground.model') }}</label>
-              <Select v-model="chatModel" :options="chatModelOptions" :placeholder="t('playground.selectChatModel')" />
+              <Select v-model="chatModel" :options="chatModelOptions" :placeholder="t('playground.selectChatModel')" data-testid="playground-chat-model-select" />
             </div>
             <button type="button" class="btn btn-secondary" @click="startNewChat">{{ t('playground.newConversation') }}</button>
           </div>
@@ -204,11 +204,11 @@
           <div class="space-y-4">
             <div>
               <label class="input-label">{{ t('playground.group') }}</label>
-              <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" />
+              <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" data-testid="playground-image-group-select" />
             </div>
             <div>
               <label class="input-label">{{ t('playground.model') }}</label>
-              <Select v-model="imageModel" :options="imageModelOptions" :placeholder="t('playground.selectImageModel')" />
+              <Select v-model="imageModel" :options="imageModelOptions" :placeholder="t('playground.selectImageModel')" data-testid="playground-image-model-select" />
             </div>
             <div>
               <label class="input-label">{{ t('playground.imagePrompt') }}</label>
@@ -247,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -367,17 +367,25 @@ function syncSelectedModels() {
   imageModel.value = retainOrPickPlaygroundModel(imageModels.value, imageModel.value)
 }
 
+let sessionLoadGeneration = 0
+
 async function loadSession() {
+  const generation = ++sessionLoadGeneration
   sessionLoading.value = true
   try {
-    session.value = await getPlaygroundSession()
+    const nextSession = await getPlaygroundSession()
+    if (generation !== sessionLoadGeneration) return
+    session.value = nextSession
     syncSelectedGroup()
     syncSelectedModels()
   } catch (error) {
+    if (generation !== sessionLoadGeneration) return
     chatError.value = chatError.value || t('playground.loadSessionFailed')
     console.error(error)
   } finally {
-    sessionLoading.value = false
+    if (generation === sessionLoadGeneration) {
+      sessionLoading.value = false
+    }
   }
 }
 
@@ -626,14 +634,39 @@ watch([selectedGroupId, tab], () => {
   syncSelectedModels()
 })
 
+// Switching groups should show the group's current models, not a stale
+// session snapshot taken when the page first loaded.
+watch(selectedGroupId, async (id, previous) => {
+  if (previous == null || id == null || sessionLoading.value) return
+  await loadSession()
+})
+
+function onWindowVisible() {
+  if (document.visibilityState === 'visible') {
+    void loadSession()
+  }
+}
+
+function onPageShow(event: PageTransitionEvent) {
+  if (event.persisted) void loadSession()
+}
+
 onBeforeUnmount(() => {
   chatAbort?.abort()
   if (pollTimer !== null) {
     window.clearTimeout(pollTimer)
   }
+  document.removeEventListener('visibilitychange', onWindowVisible)
+  window.removeEventListener('pageshow', onPageShow)
+})
+
+onActivated(() => {
+  void loadSession()
 })
 
 onMounted(async () => {
+  document.addEventListener('visibilitychange', onWindowVisible)
+  window.addEventListener('pageshow', onPageShow)
   await loadSession()
 })
 </script>

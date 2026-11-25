@@ -119,7 +119,12 @@ function playgroundErrorMessage(payload: unknown, fallback: string): string {
 }
 
 export async function getPlaygroundSession(): Promise<PlaygroundSession> {
-  const { data } = await apiClient.get<PlaygroundSession>('/playground/session')
+  const { data } = await apiClient.get<PlaygroundSession>('/playground/session', {
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  })
   return data
 }
 

@@ -119,3 +119,16 @@ func TestAdminService_UpdateGroup_NormalizesAndResetsModelAllowlist(t *testing.T
 	require.False(t, repo.updated.ModelAllowlist.Enabled)
 	require.Empty(t, repo.updated.ModelAllowlist.Models)
 }
+
+func TestAdminService_UpdateGroup_InvalidatesModelsCacheAfterAllowlistChange(t *testing.T) {
+	existing := &Group{ID: 9, Name: "existing", Platform: PlatformOpenAI, Status: StatusActive}
+	repo := &groupRepoStubForAdmin{getByID: existing}
+	modelsCache := &modelsCacheInvalidatorSpy{}
+	svc := &adminServiceImpl{groupRepo: repo, modelsCacheInvalidator: modelsCache}
+
+	_, err := svc.UpdateGroup(context.Background(), existing.ID, &UpdateGroupInput{
+		ModelAllowlist: &GroupModelAllowlist{Enabled: true, Models: []string{"gpt-4o-mini"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int64{9}, modelsCache.groupIDs)
+}

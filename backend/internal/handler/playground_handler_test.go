@@ -132,6 +132,7 @@ func TestPlaygroundSessionRequiresConfiguredService(t *testing.T) {
 	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 7})
 	(&PlaygroundHandler{}).Session(c)
 	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	var payload response.Response
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &payload))
 }

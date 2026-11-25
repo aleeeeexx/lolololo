@@ -293,3 +293,56 @@ func TestPlaygroundSubscriptionHasRemaining(t *testing.T) {
 	require.False(t, playgroundSubscriptionHasRemaining(PlaygroundSubscription{DailyLimitUSD: 10, DailyUsedUSD: 10}))
 	require.True(t, playgroundSubscriptionHasRemaining(PlaygroundSubscription{DailyLimitUSD: 10, DailyUsedUSD: 9}))
 }
+
+// allowlistAwareAdvertiser mirrors GatewayService.ListAdvertisedModelsForGroup:
+// it starts from a live catalog, then applies the group's current allowlist.
+type allowlistAwareAdvertiser struct {
+	catalog map[int64][]AdvertisedModel
+}
+
+func (s *allowlistAwareAdvertiser) ListAdvertisedModelsForGroup(_ context.Context, group *Group) []AdvertisedModel {
+	if s == nil || group == nil {
+		return nil
+	}
+	available := append([]AdvertisedModel(nil), s.catalog[group.ID]...)
+	if !group.ModelAllowlistEnabled() {
+		return available
+	}
+	source := advertisedIDs(available)
+	allowed := group.ModelAllowlist.FilterForListing(source)
+	return filterAdvertisedModels(available, allowed)
+}
+
+func TestListPlaygroundGroupsFollowsGroupAllowlistChanges(t *testing.T) {
+	group := Group{
+		ID:       1,
+		Name:     "bound",
+		Platform: PlatformOpenAI,
+		ModelAllowlist: GroupModelAllowlist{
+			Enabled: true,
+			Models:  []string{"gpt-4o"},
+		},
+	}
+	lister := &stubGroupLister{groups: []Group{group}}
+	listing := &allowlistAwareAdvertiser{catalog: map[int64][]AdvertisedModel{
+		1: {{Name: "gpt-4o"}, {Name: "gpt-4o-mini"}, {Name: "dall-e-3"}},
+	}}
+	svc := &PlaygroundService{
+		groups:      lister,
+		boundGroups: &stubBoundGroupLister{ids: playgroundBoundIDs(1)},
+		listing:     listing,
+	}
+
+	first, err := svc.listPlaygroundGroups(context.Background(), 7, nil)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.Equal(t, []string{"gpt-4o"}, first[0].Models)
+
+	lister.groups[0].ModelAllowlist.Models = []string{"gpt-4o-mini", "dall-e-3"}
+	second, err := svc.listPlaygroundGroups(context.Background(), 7, nil)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, []string{"gpt-4o-mini", "dall-e-3"}, second[0].Models)
+	require.Equal(t, []string{SupportedModelKindText}, second[0].ModelKinds["gpt-4o-mini"])
+	require.Equal(t, []string{SupportedModelKindImage}, second[0].ModelKinds["dall-e-3"])
+}

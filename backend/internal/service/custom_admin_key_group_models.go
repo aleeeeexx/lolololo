@@ -39,6 +39,7 @@ func (s *adminServiceImpl) ScopedAdminUpdateGroupModels(ctx context.Context, id 
 	if s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, id)
 	}
+	s.invalidateAvailableModelsCache(id)
 	return updated, nil
 }
 
