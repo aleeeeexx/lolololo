@@ -73,8 +73,8 @@ func TestSupportedModelsService_OnlyListsAuthorizedGroups(t *testing.T) {
 	models, err := svc.ListForUser(context.Background(), 7)
 	require.NoError(t, err)
 	require.Equal(t, []SupportedModelItem{
-		{Name: "claude-sonnet-4", Platforms: []string{PlatformAnthropic}},
-		{Name: "gpt-4o", Platforms: []string{PlatformAnthropic, PlatformOpenAI}},
+		{Name: "claude-sonnet-4", Platforms: []string{PlatformAnthropic}, Kinds: []string{SupportedModelKindText}, Company: SupportedModelCompanyAnthropic},
+		{Name: "gpt-4o", Platforms: []string{PlatformAnthropic, PlatformOpenAI}, Kinds: []string{SupportedModelKindText}, Company: SupportedModelCompanyOpenAI},
 	}, models)
 	require.Equal(t, []int64{1, 3}, listing.calls)
 	for _, model := range models {
@@ -95,7 +95,7 @@ func TestSupportedModelsService_ResponseContainsOnlySafeFields(t *testing.T) {
 	raw, err := json.Marshal(models)
 	require.NoError(t, err)
 	body := strings.ToLower(string(raw))
-	require.JSONEq(t, `[{"name":"gpt-4o","platforms":["openai"]}]`, string(raw))
+	require.JSONEq(t, `[{"name":"gpt-4o","platforms":["openai"],"kinds":["text"],"company":"openai"}]`, string(raw))
 	for _, leaked := range []string{
 		"account_id", "accountid", "api_key", "apikey", "secret", "password",
 		"credential", "token", "hidden-group", `"id":9`,
@@ -110,4 +110,30 @@ func TestSupportedModelsService_HasNoSettingOrUpstreamDependencies(t *testing.T)
 	svc := NewSupportedModelsService(&stubGroupLister{}, &stubAdvertiser{})
 	require.NotNil(t, svc.groups)
 	require.NotNil(t, svc.listing)
+}
+
+func TestSupportedModelsService_ClassifiesKindsAndCompany(t *testing.T) {
+	svc := NewSupportedModelsService(
+		&stubGroupLister{groups: []Group{{ID: 1, Platform: PlatformOpenAI}, {ID: 2, Platform: PlatformGrok}}},
+		&stubAdvertiser{byGroup: map[int64][]AdvertisedModel{
+			1: {
+				{Name: "gpt-4o", Platforms: []string{PlatformOpenAI}},
+				{Name: "dall-e-3", Platforms: []string{PlatformOpenAI}},
+				{Name: "sora-2", Platforms: []string{PlatformOpenAI}},
+			},
+			2: {
+				{Name: "grok-imagine-video", Platforms: []string{PlatformGrok}},
+				{Name: "mystery-custom-model", Platforms: []string{PlatformGrok}},
+			},
+		}},
+	)
+	models, err := svc.ListForUser(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, []SupportedModelItem{
+		{Name: "dall-e-3", Platforms: []string{PlatformOpenAI}, Kinds: []string{SupportedModelKindImage}, Company: SupportedModelCompanyOpenAI},
+		{Name: "gpt-4o", Platforms: []string{PlatformOpenAI}, Kinds: []string{SupportedModelKindText}, Company: SupportedModelCompanyOpenAI},
+		{Name: "grok-imagine-video", Platforms: []string{PlatformGrok}, Kinds: []string{SupportedModelKindVideo}, Company: SupportedModelCompanyXAI},
+		{Name: "mystery-custom-model", Platforms: []string{PlatformGrok}, Kinds: []string{SupportedModelKindText}, Company: SupportedModelCompanyOther},
+		{Name: "sora-2", Platforms: []string{PlatformOpenAI}, Kinds: []string{SupportedModelKindVideo}, Company: SupportedModelCompanyOpenAI},
+	}, models)
 }

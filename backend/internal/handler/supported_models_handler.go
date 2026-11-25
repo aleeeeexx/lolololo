@@ -35,6 +35,8 @@ func NewSupportedModelsHandler(
 type supportedModelsListItem struct {
 	Name      string   `json:"name"`
 	Platforms []string `json:"platforms,omitempty"`
+	Kinds     []string `json:"kinds"`
+	Company   string   `json:"company"`
 }
 
 // List GET /api/v1/supported-models
@@ -63,6 +65,8 @@ func (h *SupportedModelsHandler) List(c *gin.Context) {
 		out = append(out, supportedModelsListItem{
 			Name:      model.Name,
 			Platforms: append([]string(nil), model.Platforms...),
+			Kinds:     append([]string(nil), model.Kinds...),
+			Company:   model.Company,
 		})
 	}
 	response.Success(c, out)

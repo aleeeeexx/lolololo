@@ -20,6 +20,15 @@ function catalog(items: SupportedModelItem[]): SupportedModelItem[] {
   return items
 }
 
+const defaultCatalog: SupportedModelItem[] = [
+  { name: 'gpt-4o', platforms: ['openai'], kinds: ['text'], company: 'openai' },
+  { name: 'claude-sonnet-4', platforms: ['anthropic'], kinds: ['text'], company: 'anthropic' },
+  { name: 'dall-e-3', platforms: ['openai'], kinds: ['image'], company: 'openai' },
+  { name: 'sora-2', platforms: ['openai'], kinds: ['video'], company: 'openai' },
+  { name: 'grok-imagine-video', platforms: ['grok'], kinds: ['video'], company: 'xai' },
+  { name: 'mystery-custom-model', platforms: ['grok'], kinds: ['text'], company: 'other' },
+]
+
 const mounted: ReturnType<typeof mount>[] = []
 function render() {
   const wrapper = mount(SupportedModelsView, {
@@ -31,10 +40,7 @@ function render() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  getSupportedModels.mockResolvedValue(catalog([
-    { name: 'gpt-4o', platforms: ['openai'] },
-    { name: 'claude-sonnet-4', platforms: ['anthropic'] },
-  ]))
+  getSupportedModels.mockResolvedValue(catalog(defaultCatalog))
   copyToClipboard.mockResolvedValue(true)
 })
 
@@ -50,10 +56,7 @@ describe('SupportedModelsView', () => {
     await flushPromises()
     expect(wrapper.find('[data-testid="supported-models-loading"]').exists()).toBe(true)
 
-    resolveList(catalog([
-      { name: 'gpt-4o', platforms: ['openai'] },
-      { name: 'claude-sonnet-4', platforms: ['anthropic'] },
-    ]))
+    resolveList(catalog(defaultCatalog))
     await flushPromises()
     expect(wrapper.find('[data-testid="supported-models-loading"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="supported-models-source"]').text()).toBe('supportedModels.sourceHint')
@@ -78,11 +81,54 @@ describe('SupportedModelsView', () => {
     expect(wrapper.get('[data-testid="supported-model-claude-sonnet-4"]').exists()).toBe(true)
   })
 
-  it('copies the exact model ID when a row is clicked', async () => {
+  it('switches by model type and keeps unmatched filters empty', async () => {
     const wrapper = render()
     await flushPromises()
-    await wrapper.get('[data-testid="supported-model-gpt-4o"]').trigger('click')
-    expect(copyToClipboard).toHaveBeenCalledWith('gpt-4o', expect.stringContaining('gpt-4o'))
+    await wrapper.get('[data-testid="supported-models-kind-image"]').trigger('click')
+    expect(wrapper.find('[data-testid="supported-model-dall-e-3"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-model-gpt-4o"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="supported-model-sora-2"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="supported-models-kind-video"]').trigger('click')
+    expect(wrapper.find('[data-testid="supported-model-sora-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-model-grok-imagine-video"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-model-dall-e-3"]').exists()).toBe(false)
+  })
+
+  it('switches by company and only lists companies that appear in the catalog', async () => {
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="supported-models-company-openai"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-models-company-anthropic"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-models-company-xai"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-models-company-other"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-models-company-google"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="supported-models-company-xai"]').trigger('click')
+    expect(wrapper.find('[data-testid="supported-model-grok-imagine-video"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-model-gpt-4o"]').exists()).toBe(false)
+  })
+
+  it('combines type and company filters with AND and shows an empty state instead of the full list', async () => {
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.get('[data-testid="supported-models-kind-video"]').trigger('click')
+    await wrapper.get('[data-testid="supported-models-company-openai"]').trigger('click')
+    expect(wrapper.find('[data-testid="supported-model-sora-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="supported-model-grok-imagine-video"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="supported-models-empty"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="supported-models-company-anthropic"]').trigger('click')
+    expect(wrapper.get('[data-testid="supported-models-empty"]').text()).toBe('supportedModels.noSearchResult')
+    expect(wrapper.find('[data-testid="supported-models-list"]').exists()).toBe(false)
+  })
+
+  it('copies the exact model ID when a row is clicked, including after filters are applied', async () => {
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.get('[data-testid="supported-models-kind-image"]').trigger('click')
+    await wrapper.get('[data-testid="supported-model-dall-e-3"]').trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith('dall-e-3', expect.stringContaining('dall-e-3'))
   })
 
   it('shows an empty state when the API returns no models', async () => {

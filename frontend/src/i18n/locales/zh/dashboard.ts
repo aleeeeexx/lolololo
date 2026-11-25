@@ -669,7 +669,33 @@ export default {
     sourceChannels: '列表来自你当前可访问渠道中的支持模型。',
     sourceHint: '列表按你可绑定分组汇总，口径与请求侧 /v1/models 一致（已保存配置，不会请求上游）。',
     copyModelId: '复制模型 ID {model}',
-    copied: '已复制 {model}'
+    copied: '已复制 {model}',
+    kindLabel: '模型类型',
+    companyLabel: '所属公司',
+    filters: {
+      all: '全部',
+      kindText: '文本',
+      kindImage: '图片',
+      kindVideo: '视频'
+    },
+    companies: {
+      openai: 'OpenAI',
+      anthropic: 'Anthropic',
+      google: 'Google',
+      xai: 'xAI',
+      deepseek: 'DeepSeek',
+      moonshot: 'Moonshot',
+      zhipu: '智谱',
+      minimax: 'MiniMax',
+      alibaba: '阿里云',
+      meta: 'Meta',
+      mistral: 'Mistral',
+      bytedance: '字节跳动',
+      tencent: '腾讯',
+      baidu: '百度',
+      baichuan: '百川',
+      other: '其他'
+    }
   },
 
   // Model Plaza (public group/model pricing showcase)

@@ -5,10 +5,14 @@
 
 import { apiClient } from './client'
 
+export type SupportedModelKind = 'text' | 'image' | 'video'
+
 export interface SupportedModelItem {
   /** Exact model ID as returned by the API; copy this value unchanged. */
   name: string
   platforms: string[]
+  kinds?: SupportedModelKind[]
+  company?: string
 }
 
 export async function getSupportedModels(): Promise<SupportedModelItem[]> {

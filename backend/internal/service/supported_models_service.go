@@ -7,11 +7,15 @@ import (
 	"strings"
 )
 
-// SupportedModel is a sanitized, user-facing model listing entry.
-// It only contains the request-side model ID and platform labels.
+// SupportedModelItem is a sanitized, user-facing model listing entry.
+// It contains the request-side model ID, platform labels, generation kinds,
+// and the inferred model vendor. It never includes account, credential, or
+// group identifiers.
 type SupportedModelItem struct {
 	Name      string   `json:"name"`
 	Platforms []string `json:"platforms,omitempty"`
+	Kinds     []string `json:"kinds"`
+	Company   string   `json:"company"`
 }
 
 // userGroupLister is satisfied by APIKeyService.GetAvailableGroups, which
@@ -75,7 +79,13 @@ func (s *SupportedModelsService) ListForUser(ctx context.Context, userID int64) 
 	for _, item := range items {
 		platforms := append([]string(nil), item.Platforms...)
 		sort.Strings(platforms)
-		out = append(out, SupportedModelItem{Name: item.Name, Platforms: platforms})
+		kinds, company := classifySupportedModel(item.Name)
+		out = append(out, SupportedModelItem{
+			Name:      item.Name,
+			Platforms: platforms,
+			Kinds:     kinds,
+			Company:   company,
+		})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)

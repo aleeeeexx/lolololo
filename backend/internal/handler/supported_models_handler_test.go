@@ -55,8 +55,8 @@ func TestSupportedModelsList_Unauthenticated401(t *testing.T) {
 
 func TestSupportedModelsList_ReturnsSanitizedModels(t *testing.T) {
 	lister := &stubSupportedModelsLister{models: []service.SupportedModelItem{
-		{Name: "gpt-4o", Platforms: []string{service.PlatformOpenAI}},
-		{Name: "claude-sonnet-4", Platforms: []string{service.PlatformAnthropic}},
+		{Name: "gpt-4o", Platforms: []string{service.PlatformOpenAI}, Kinds: []string{service.SupportedModelKindText}, Company: service.SupportedModelCompanyOpenAI},
+		{Name: "claude-sonnet-4", Platforms: []string{service.PlatformAnthropic}, Kinds: []string{service.SupportedModelKindText}, Company: service.SupportedModelCompanyAnthropic},
 	}}
 	w := performSupportedModels(&SupportedModelsHandler{svc: lister}, 42)
 	require.Equal(t, http.StatusOK, w.Code)
@@ -69,8 +69,8 @@ func TestSupportedModelsList_ReturnsSanitizedModels(t *testing.T) {
 	raw, err := json.Marshal(payload.Data)
 	require.NoError(t, err)
 	require.JSONEq(t, `[
-		{"name":"gpt-4o","platforms":["openai"]},
-		{"name":"claude-sonnet-4","platforms":["anthropic"]}
+		{"name":"gpt-4o","platforms":["openai"],"kinds":["text"],"company":"openai"},
+		{"name":"claude-sonnet-4","platforms":["anthropic"],"kinds":["text"],"company":"anthropic"}
 	]`, string(raw))
 
 	body := strings.ToLower(w.Body.String())

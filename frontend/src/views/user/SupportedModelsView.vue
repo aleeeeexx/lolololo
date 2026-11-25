@@ -28,6 +28,60 @@
         </button>
       </div>
 
+      <div class="space-y-3" data-testid="supported-models-filters">
+        <div class="flex flex-wrap items-start gap-x-3 gap-y-2">
+          <span class="pt-1 text-xs font-medium text-[color:var(--muted)]">
+            {{ t('supportedModels.kindLabel') }}
+          </span>
+          <div
+            class="flex flex-wrap gap-2"
+            role="radiogroup"
+            :aria-label="t('supportedModels.kindLabel')"
+            data-testid="supported-models-kind-filters"
+          >
+            <button
+              v-for="option in kindOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :aria-checked="selectedKind === option.value"
+              class="supported-model-pill"
+              :class="selectedKind === option.value ? 'supported-model-pill-active' : ''"
+              :data-testid="`supported-models-kind-${option.value}`"
+              @click="selectedKind = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="companyOptions.length > 0" class="flex flex-wrap items-start gap-x-3 gap-y-2">
+          <span class="pt-1 text-xs font-medium text-[color:var(--muted)]">
+            {{ t('supportedModels.companyLabel') }}
+          </span>
+          <div
+            class="flex flex-wrap gap-2"
+            role="radiogroup"
+            :aria-label="t('supportedModels.companyLabel')"
+            data-testid="supported-models-company-filters"
+          >
+            <button
+              v-for="option in companyFilterOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :aria-checked="selectedCompany === option.value"
+              class="supported-model-pill"
+              :class="selectedCompany === option.value ? 'supported-model-pill-active' : ''"
+              :data-testid="`supported-models-company-${option.value}`"
+              @click="selectedCompany = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <p v-if="!loading && !loadFailed && sourceHint" class="text-xs text-gray-500 dark:text-dark-400" data-testid="supported-models-source">
         {{ sourceHint }}
       </p>
@@ -51,7 +105,7 @@
         role="status"
         data-testid="supported-models-empty"
       >
-        {{ searchActive ? t('supportedModels.noSearchResult') : t('supportedModels.empty') }}
+        {{ filtersActive ? t('supportedModels.noSearchResult') : t('supportedModels.empty') }}
       </div>
 
       <div v-else class="overflow-hidden rounded border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900" data-testid="supported-models-list">
@@ -75,8 +129,8 @@
             >
               <span class="min-w-0">
                 <span class="block break-all font-mono text-sm font-medium text-gray-900 dark:text-white">{{ model.name }}</span>
-                <span v-if="model.platforms.length" class="mt-0.5 block text-xs text-gray-500 dark:text-dark-400">
-                  {{ model.platforms.join(', ') }}
+                <span class="mt-0.5 block text-xs text-gray-500 dark:text-dark-400">
+                  {{ modelMeta(model) }}
                 </span>
               </span>
               <Icon name="copy" size="sm" class="shrink-0 text-gray-500 dark:text-dark-300" aria-hidden="true" />
@@ -97,8 +151,10 @@ import { getSupportedModels } from '@/api/supportedModels'
 import { useClipboard } from '@/composables/useClipboard'
 import {
   filterSupportedModels,
+  listSupportedModelCompanies,
   loadSupportedModels,
   type SupportedModelItem,
+  type SupportedModelKind,
 } from '@/utils/supportedModels'
 
 const { t } = useI18n()
@@ -109,11 +165,100 @@ const loading = ref(false)
 const loadFailed = ref(false)
 const loaded = ref(false)
 const searchQuery = ref('')
+const selectedKind = ref<'all' | SupportedModelKind>('all')
+const selectedCompany = ref('all')
 
-const searchActive = computed(() => searchQuery.value.trim() !== '')
-const filteredModels = computed(() => filterSupportedModels(models.value, searchQuery.value))
+const kindOptions = computed(() => [
+  { value: 'all' as const, label: t('supportedModels.filters.all') },
+  { value: 'text' as const, label: t('supportedModels.filters.kindText') },
+  { value: 'image' as const, label: t('supportedModels.filters.kindImage') },
+  { value: 'video' as const, label: t('supportedModels.filters.kindVideo') },
+])
+
+const companyOptions = computed(() => listSupportedModelCompanies(models.value))
+
+const companyFilterOptions = computed(() => [
+  { value: 'all', label: t('supportedModels.filters.all') },
+  ...companyOptions.value.map((company) => ({ value: company, label: companyLabel(company) })),
+])
+
+const filtersActive = computed(
+  () =>
+    searchQuery.value.trim() !== '' ||
+    selectedKind.value !== 'all' ||
+    selectedCompany.value !== 'all',
+)
+
+const filteredModels = computed(() =>
+  filterSupportedModels(models.value, {
+    query: searchQuery.value,
+    kind: selectedKind.value,
+    company: selectedCompany.value,
+  }),
+)
 
 const sourceHint = computed(() => (loaded.value ? t('supportedModels.sourceHint') : ''))
+
+function companyLabel(company: string): string {
+  switch (company) {
+    case 'openai':
+      return t('supportedModels.companies.openai')
+    case 'anthropic':
+      return t('supportedModels.companies.anthropic')
+    case 'google':
+      return t('supportedModels.companies.google')
+    case 'xai':
+      return t('supportedModels.companies.xai')
+    case 'deepseek':
+      return t('supportedModels.companies.deepseek')
+    case 'moonshot':
+      return t('supportedModels.companies.moonshot')
+    case 'zhipu':
+      return t('supportedModels.companies.zhipu')
+    case 'minimax':
+      return t('supportedModels.companies.minimax')
+    case 'alibaba':
+      return t('supportedModels.companies.alibaba')
+    case 'meta':
+      return t('supportedModels.companies.meta')
+    case 'mistral':
+      return t('supportedModels.companies.mistral')
+    case 'bytedance':
+      return t('supportedModels.companies.bytedance')
+    case 'tencent':
+      return t('supportedModels.companies.tencent')
+    case 'baidu':
+      return t('supportedModels.companies.baidu')
+    case 'baichuan':
+      return t('supportedModels.companies.baichuan')
+    case 'other':
+      return t('supportedModels.companies.other')
+    default:
+      return company
+  }
+}
+
+function kindLabel(kind: SupportedModelKind): string {
+  switch (kind) {
+    case 'text':
+      return t('supportedModels.filters.kindText')
+    case 'image':
+      return t('supportedModels.filters.kindImage')
+    case 'video':
+      return t('supportedModels.filters.kindVideo')
+    default:
+      return kind
+  }
+}
+
+function modelMeta(model: SupportedModelItem): string {
+  const parts = [
+    companyLabel(model.company),
+    ...model.kinds.map((kind) => kindLabel(kind)),
+    ...model.platforms,
+  ].filter(Boolean)
+  return [...new Set(parts)].join(' · ')
+}
 
 async function loadModels() {
   loading.value = true
@@ -137,3 +282,33 @@ async function copyModel(name: string) {
 
 onMounted(loadModels)
 </script>
+
+<style scoped>
+.supported-model-pill {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--foreground-secondary);
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.3;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.supported-model-pill:hover {
+  color: var(--foreground);
+}
+
+.supported-model-pill-active {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.supported-model-pill-active:hover {
+  border-color: var(--primary-hover);
+  background-color: var(--primary-hover);
+  color: var(--primary-foreground);
+}
+</style>

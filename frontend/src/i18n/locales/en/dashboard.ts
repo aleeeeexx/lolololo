@@ -664,7 +664,33 @@ export default {
     sourceChannels: 'This list comes from the supported models in channels currently available to you.',
     sourceHint: 'This list is aggregated from groups you can bind, using the same /v1/models rules and saved configuration only. It does not call upstream providers.',
     copyModelId: 'Copy model ID {model}',
-    copied: 'Copied {model}'
+    copied: 'Copied {model}',
+    kindLabel: 'Model type',
+    companyLabel: 'Company',
+    filters: {
+      all: 'All',
+      kindText: 'Text',
+      kindImage: 'Image',
+      kindVideo: 'Video'
+    },
+    companies: {
+      openai: 'OpenAI',
+      anthropic: 'Anthropic',
+      google: 'Google',
+      xai: 'xAI',
+      deepseek: 'DeepSeek',
+      moonshot: 'Moonshot',
+      zhipu: 'Zhipu',
+      minimax: 'MiniMax',
+      alibaba: 'Alibaba',
+      meta: 'Meta',
+      mistral: 'Mistral',
+      bytedance: 'ByteDance',
+      tencent: 'Tencent',
+      baidu: 'Baidu',
+      baichuan: 'Baichuan',
+      other: 'Other'
+    }
   },
 
   // Model Plaza (public group/model pricing showcase)
