@@ -283,6 +283,22 @@ const PlaygroundIcon = {
     )
 }
 
+
+const HandbookIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'
+        })
+      ]
+    )
+}
+
 const ModelsIcon = {
   render: () =>
     h(
@@ -751,12 +767,13 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
-// 条目顺序：使用 → 支持的模型 → 仪表盘（用户端） → 密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
-// 「使用」是登录后的个人对话/生图入口；「支持的模型」紧随其后，方便复制模型 ID。模型广场入口保持独立。
+// 条目顺序：使用 → 使用手册 → 支持的模型 → 仪表盘（用户端） → 密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
+// 「使用」是登录后的个人对话/生图入口；「使用手册」紧随其后，方便对照配置；「支持的模型」再后，方便复制模型 ID。模型广场入口保持独立。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = [
     { path: '/use', label: t('nav.playground'), icon: PlaygroundIcon },
+    { path: '/handbook', label: t('nav.handbook'), icon: HandbookIcon },
     { path: '/supported-models', label: t('nav.supportedModels'), icon: ModelsIcon },
   ]
   if (withDashboard) {

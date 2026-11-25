@@ -28,6 +28,15 @@
         </div>
         <div class="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
           <LocaleSwitcher />
+          <router-link
+            to="/handbook"
+            class="flex h-10 shrink-0 items-center gap-1.5 rounded-[length:var(--radius-sm)] px-2.5 text-[13px] font-medium text-[color:var(--muted)] transition-colors duration-150 hover:bg-[color:var(--surface-deep)] hover:text-[color:var(--foreground)]"
+            :title="t('nav.handbook')"
+            :aria-label="t('nav.handbook')"
+          >
+            <Icon name="book" size="md" />
+            <span class="hidden sm:inline">{{ t('nav.handbook') }}</span>
+          </router-link>
           <a
             v-if="docUrl"
             :href="docUrl"
@@ -106,6 +115,17 @@
         <div class="flex items-center gap-3">
           <!-- Language Switcher -->
           <LocaleSwitcher />
+
+          <!-- In-site handbook -->
+          <router-link
+            to="/handbook"
+            class="inline-flex items-center gap-1.5 rounded-[length:var(--radius-sm)] p-2 text-[13px] font-medium text-[color:var(--muted)] transition-colors duration-150 hover:bg-[color:var(--surface-deep)] hover:text-[color:var(--foreground)]"
+            :title="t('nav.handbook')"
+            :aria-label="t('nav.handbook')"
+          >
+            <Icon name="book" size="md" />
+            <span class="hidden sm:inline">{{ t('nav.handbook') }}</span>
+          </router-link>
 
           <!-- Doc Link -->
           <a
@@ -448,6 +468,12 @@
           &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
         </p>
         <div class="flex items-center gap-4">
+          <router-link
+            to="/handbook"
+            class="text-[13px] text-[color:var(--accent-ink)] transition-colors duration-150 hover:text-[color:var(--accent-hover)]"
+          >
+            {{ t('nav.handbook') }}
+          </router-link>
           <a
             v-if="docUrl"
             :href="docUrl"

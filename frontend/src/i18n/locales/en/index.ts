@@ -6,6 +6,7 @@ import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
 import batchImage from './batchImage'
 import playground from './playground'
+import handbook from './handbook'
 import admin from './admin'
 import misc from './misc'
 
@@ -18,6 +19,7 @@ export default {
   ...channelMonitorV2,
   ...batchImage,
   playground,
+  handbook,
   admin,
   ...misc,
 }

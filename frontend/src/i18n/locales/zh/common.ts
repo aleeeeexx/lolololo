@@ -202,6 +202,7 @@ export default {
     recharge: '充值',
     subscribe: '订阅',
     docs: '文档',
+    handbook: '使用手册',
     myOrders: '我的订单',
     orderManagement: '订单管理',
     paymentDashboard: '支付概览',

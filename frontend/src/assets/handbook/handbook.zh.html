@@ -1,0 +1,788 @@
+<h1>DubDub 使用手册</h1>
+<p class="lead">操作章节在前：注册、密钥、CC Switch、各客户端、生图、Grok 媒体接口、Grok Build 与排错；文末有「小白入门」概念科普。</p>
+<div class="notice">本教程面向 <strong>DubDub AI中转站</strong> 用户。请先在本站注册账号，再通过「充值/订阅」或「兑换」开通额度。API 地址请使用本页自动显示的站点根地址（兼容 OpenAI / Anthropic 风格路径，如 <code>/v1</code>）。登录后也可在侧边栏「直接用」里先试用已绑定密钥的模型，不必先配客户端。</div>
+<h2 id="register">一、注册账号</h2>
+<ol><li>打开本站 <a href="/register">注册页面</a> 注册账号。</li><li>登录后前往「<a href="/purchase">充值/订阅</a>」或「<a href="/redeem">兑换</a>」开通额度。若注册未开放或额度未到账，请联系站点管理员。</li></ol>
+<h2 id="keys">二、新建密钥</h2>
+<p>进入本站 <a href="/keys">API 密钥</a> 页新建密钥。创建时按你要跑的模型选厂商与分组（以站内实际可选分组为准）：</p><p>密钥页还提供「使用密钥」和「导入到 CC Switch」，可按协议自动填好地址，减少手填出错。模型 ID 也可在「<a href="/supported-models">支持的模型</a>」页复制。截图为操作示意，本站配色可能不同，步骤相同。</p>
+<figure class="shot">
+<img alt="新建密钥弹窗：厂商选 Anthropic，用于 Claude 分组" loading="lazy" src="/handbook/images/img-01.png"/>
+<figcaption>新建密钥弹窗：厂商选 Anthropic，用于 Claude 分组</figcaption>
+</figure>
+<div class="tips">
+<div class="tip"><strong>Claude / Claude Code</strong><span>厂商选 Anthropic，分组选带有 <code>claude-</code> 的</span></div>
+<div class="tip"><strong>Codex / GPT</strong><span>厂商选 OpenAI，分组选带有 <code>gpt-</code> 的</span></div>
+<div class="tip"><strong>Grok</strong><span>厂商选「其他」，分组选 <code>grok</code></span></div>
+</div>
+<div class="callout">密钥建好后请立刻复制保存。后面在 CC Switch 里填的就是这串 <code>sk-</code> 开头的 Key。地址按客户端协议填写：Codex（Responses 原生）与 Claude Code 填站点根 <code>{{API_BASE}}</code>；多数 OpenAI Chat Completions 兼容客户端填 <code>{{API_BASE}}/v1</code>。详见下文 CC Switch 与 Claude Code 章节。</div>
+<h2 id="download">三、下载并安装 CC Switch</h2>
+<p>CC Switch 用来统一管理各 AI 编程工具的 API 供应商（Claude Code、Codex 等），避免手改 JSON / TOML。</p>
+<p>本手册按 <strong>v4.x</strong> 编写（Linux AppImage 实测 <strong>v4.0.18</strong>，侧边栏橙色主题）。下载页：<br/>
+<a href="https://github.com/farion1231/cc-switch/releases/tag/v4.0.18" rel="noopener" target="_blank">github.com/farion1231/cc-switch/releases/tag/v4.0.18</a>（也可取最新 v4）。</p>
+<ul>
+<li>Windows：选 <code>.msi</code></li>
+<li>macOS：选 <code>.dmg</code></li>
+<li>Linux：可选 <code>.AppImage</code> / <code>.deb</code> / <code>.rpm</code></li>
+</ul>
+<figure class="shot">
+<img alt="GitHub 下载 CC-Switch：Windows 选 msi，mac 选 dmg" loading="lazy" src="/handbook/images/img-02.png"/>
+<figcaption>GitHub 下载 CC-Switch：按系统选择安装包</figcaption>
+</figure>
+<h2 id="ccswitch-notes">四、CC Switch 注意事项</h2>
+<p>v4 主界面为<strong>左侧边栏</strong>：上方是各应用（Claude Code / Codex / …），下方是 MCP、Skills、提示词、会话、授权中心、用量统计、应用、设置。每个应用页顶部有模式标签：<strong>直连 / 路由 / 聚合</strong>。页头徽章显示当前真实模式（例如「直连 · DubDub」）。</p>
+<figure class="shot">
+<img alt="CC Switch v4 Codex 页：侧边栏、直连/路由/聚合标签、供应商 DubDub 使用中" loading="lazy" src="/handbook/images/img-16-ccswitch-codex-v4.png"/>
+<figcaption>CC Switch v4 · Codex：左侧应用列表 + 直连/路由/聚合；页头徽章「直连 · DubDub」</figcaption>
+</figure>
+<h3 id="ccswitch-mode-click">1. 点标签 ≠ 切换模式</h3>
+<div class="callout">点击「直连 / 路由 / 聚合」<strong>只切换查看内容</strong>。真正切换模式，要点页面里写明后果的按钮，例如「开始路由」「切换到聚合模式」「回到直连」。以页头徽章为准，而不是当前点亮的标签。</div>
+<h3 id="ccswitch-modes">2. 三种模式对比</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>模式</th><th>请求怎么走</th><th>适合</th></tr></thead>
+<tbody>
+<tr><td><strong>直连</strong></td><td>客户端直接连供应商，CC Switch 看不到请求正文流量</td><td>日常单供应商（<strong>本站推荐起步</strong>）</td></tr>
+<tr><td><strong>路由</strong></td><td>经本机 CC Switch 转发；可协议转换、热切换、故障转移</td><td>协议不兼容或需要 failover</td></tr>
+<tr><td><strong>聚合</strong></td><td>经本机路由，多家模型进同一选择器，按所选模型分发</td><td>一会话混用多家；<strong>无 failover</strong></td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>聚合目前主要支持 <strong>Claude Code</strong> 与 <strong>Codex</strong>；不提供故障转移。</li>
+<li>「完整 URL」「自定义 User-Agent」等选项标注为<strong>只在路由/聚合生效</strong>；直连模式下可忽略。</li>
+</ul>
+<h3 id="ccswitch-other-notes">3. 其它重要提示</h3>
+<ul>
+<li><strong>重启：</strong>Codex 改模型列表后需<strong>重启 Codex</strong>；Claude Code 直连一般无需重启（以界面提示为准）。</li>
+<li><strong>切换供应商：</strong>v4 只替换地址 / 凭据 / 模型等关键字段，其它配置尽量保留。</li>
+<li><strong>用量：</strong>会话日志与经路由的请求都会记入左侧「用量统计」；直连时主要靠会话日志（本站后台「<a href="/usage">使用记录</a>」仍以实际打到 DubDub 的请求为准）。</li>
+<li><strong>首次打开 v4：</strong>可能出现「界面改版了」引导——用量统计与授权中心已移到左侧边栏。</li>
+</ul>
+<h3 id="ccswitch-provider">4. 本站第三方卡怎么填</h3>
+<div class="tips">
+<div class="tip"><strong>Codex</strong><span>上游格式选 <strong>Responses（原生）</strong>；Base URL 填 <code>{{API_BASE}}</code>（不要重复 <code>/v1</code>，除非表单明确要求）</span></div>
+<div class="tip"><strong>Claude Code</strong><span>上游格式选 <strong>Anthropic Messages（原生）</strong>；请求地址填站点根 <code>{{API_BASE}}</code>（不带 <code>/v1</code>）；认证字段默认 <code>ANTHROPIC_AUTH_TOKEN</code></span></div>
+<div class="tip"><strong>OpenAI Chat 兼容</strong><span>其它走 Chat Completions 的客户端，Base URL 通常仍是 <code>{{API_BASE}}/v1</code></span></div>
+</div>
+<h3 id="ccswitch-add-provider">5. 添加供应商（通用步骤）</h3>
+<ol>
+<li>侧栏选中目标应用（如 Codex / Claude Code）。</li>
+<li>右上角橙色 <strong>+</strong>「添加供应商」→ 自定义或预设。</li>
+<li>填写 Base URL / 请求地址与本站密钥，配置模型，保存。</li>
+<li>在<strong>直连</strong>下列表中启用该供应商；确认页头徽章变为「直连 · …」。</li>
+</ol>
+<h2 id="config-gpt">五、配置 CC Switch（Codex）</h2>
+<p>原则：<strong>在侧栏点 Codex</strong> 再添加供应商——不跟「模型名字」走。在 Codex 里用 GPT / Grok，都进 Codex 页配置。</p>
+<div class="callout">本站 Codex 推荐：上游 <strong>Responses（原生）</strong>，Base URL <code>{{API_BASE}}</code>。直连启用后，常见会写入 <code>~/.codex/config.toml</code>：<code>wire_api = responses</code>、<code>base_url = {{API_BASE}}</code>，以及 bearer token 相关字段（字段名以当前 Codex / CC Switch 版本为准，例如 <code>experimental_bearer_token</code>）。模型 ID 以站内密钥分组可用列表为准（示例可能是 <code>gpt-5.6-sol</code> 等，勿写死唯一模型）。部分模型不适合 chat/completions；Codex 请走 Responses。</div>
+<h3 id="cfg-1">1. 打开 Codex 页，添加供应商</h3>
+<p>侧栏点 <strong>Codex</strong>，再点右上角橙色「+ / 添加供应商」。</p>
+<figure class="shot">
+<img alt="CC Switch v4 Codex 直连页，DubDub 供应商使用中" loading="lazy" src="/handbook/images/img-16-ccswitch-codex-v4.png"/>
+<figcaption>Codex 直连：供应商列表中启用 DubDub（<code>{{API_BASE}}</code>）</figcaption>
+</figure>
+<h3 id="cfg-2">2. 选择「自定义配置」或适用预设</h3>
+<p>在「预设供应商」中选<strong>自定义配置</strong>（或你熟悉的预设），再手动填写必要字段。</p>
+<h3 id="cfg-3">3. 复制 DubDub 密钥</h3>
+<p>到站内 <a href="/keys">API 密钥</a> 页复制 <strong>OpenAI / GPT 分组</strong>密钥（勿把完整密钥写进文档或截图）。</p>
+<figure class="shot">
+<img alt="复制刚新建的密钥：密钥列表中的一行（名称、sk 密钥、复制按钮）" loading="lazy" src="/handbook/images/img-05.png"/>
+<figcaption>在站内密钥列表复制 Key（注意打码后再分享截图）</figcaption>
+</figure>
+<h3 id="cfg-4">4. 填入地址、密钥与模型并保存</h3>
+<ul>
+<li><strong>供应商标识</strong>：小写字母/数字/连字符，如 <code>dubdub</code> / <code>dubdub-gpt</code></li>
+<li><strong>上游格式 / 接口格式</strong>：选 <strong>Responses（原生）</strong>（界面也可能写作 OpenAI Responses）</li>
+<li><strong>API Key</strong>：粘贴 DubDub 密钥</li>
+<li><strong>Base URL</strong>：填 <code>{{API_BASE}}</code>（Responses 原生一般<strong>不要</strong>再加 <code>/v1</code>，除非表单说明要求）</li>
+<li><strong>模型配置</strong>：添加模型 ID 与显示名称（以站内可用为准）</li>
+</ul>
+<p>保存后，在<strong>直连</strong>列表里启用该供应商，并<strong>重启 Codex</strong> 后再改模型或验证。</p>
+<h2 id="use-gpt">六、在各端使用 GPT / Codex</h2>
+<h3 id="use-client">Codex 客户端</h3>
+<ol>
+<li>下载安装：<a href="https://openai.com/zh-Hans-CN/codex/" rel="noopener" target="_blank">openai.com/zh-Hans-CN/codex</a></li>
+<li>下载过慢时请开代理，并尽量使用 <strong>TUN 模式</strong>。</li>
+<li>CC Switch 配好或修改模型后，务必<strong>重启 Codex 客户端</strong>。</li>
+</ol>
+<h3 id="use-cli">终端 CLI</h3>
+<ol>
+<li>安装 Node：<a href="https://nodejs.org/en" rel="noopener" target="_blank">nodejs.org</a>（安装一路默认即可）</li>
+<li>安装 Git：<a href="https://git-scm.com/" rel="noopener" target="_blank">git-scm.com</a></li>
+<li>打开终端：Windows 可用 <kbd>Win</kbd>+<kbd>R</kbd> 输入 <code>cmd</code>；macOS 可用 Terminal / iTerm2；Linux 用系统终端</li>
+<li>输入 <code>codex</code> 开始使用；改模型后重启 CLI</li>
+</ol>
+<figure class="shot">
+<img alt="终端运行 Codex：界面显示当前模型，提示输入 codex 即可使用" loading="lazy" src="/handbook/images/img-07.png"/>
+<figcaption>终端运行 Codex</figcaption>
+</figure>
+<p>直连成功后可检查 <code>~/.codex/config.toml</code> 是否包含 <code>wire_api = responses</code> 与 <code>base_url = "{{API_BASE}}"</code>（具体键名随版本可能略有差异）。</p>
+<h3 id="use-editor">Cursor / VS Code</h3>
+<p>在扩展市场安装 Codex 相关插件：</p>
+<figure class="shot">
+<img alt="在 Cursor/VS Code 扩展商店搜索 Codex 插件并安装" loading="lazy" src="/handbook/images/img-08.png"/>
+<figcaption>在 Cursor/VS Code 扩展商店搜索 Codex 插件并安装</figcaption>
+</figure>
+<p>若 CC Switch 提供「应用到编辑器插件」一类开关，打开后<strong>重启编辑器</strong>生效。</p>
+<h2 id="claude-code">七、Claude Code 使用</h2>
+<p>Claude Code 走 Anthropic Messages 协议，地址用<strong>站点根</strong> <code>{{API_BASE}}</code>，不要写成 <code>{{API_BASE}}/v1</code>（与多数 OpenAI 兼容客户端不同）。密钥须属于支持 Claude 模型的分组。</p>
+<h3 id="claude-install">1. 安装</h3>
+<p>推荐官方安装脚本，或：</p>
+<pre><code>npm install -g @anthropic-ai/claude-code
+claude --version</code></pre>
+<h3 id="claude-ccswitch">2. 用 CC Switch（推荐）</h3>
+<ol>
+<li>侧栏选 <strong>Claude Code</strong> → 右上角橙色「+ 添加供应商」。</li>
+<li><strong>请求地址</strong>填 <code>{{API_BASE}}</code>。</li>
+<li>粘贴本站 <strong>Claude / Anthropic 分组</strong>密钥。</li>
+<li>上游格式选 <strong>Anthropic Messages（原生）</strong>；认证字段默认 <code>ANTHROPIC_AUTH_TOKEN</code>。</li>
+<li>可选：填写 Sonnet / Opus / Haiku / Fable / Subagent 等模型映射（站内模型 ID 以「使用密钥」或模型列表为准，例如 <code>claude-sonnet-4-5</code>、<code>claude-haiku-4-5-20251001</code> 等）。</li>
+<li>保存，并在<strong>直连</strong>下启用；确认页头徽章类似「直连 · DubDub」。</li>
+</ol>
+<figure class="shot">
+<img alt="CC Switch v4 Claude Code 直连页，DubDub 供应商使用中" loading="lazy" src="/handbook/images/img-17-ccswitch-claude-v4.png"/>
+<figcaption>Claude Code 直连：启用 DubDub（请求地址 <code>{{API_BASE}}</code>）</figcaption>
+</figure>
+<p>直连切换后 Claude Code 一般<strong>无需重启</strong>（以界面提示为准）；不行就新开终端。</p>
+<h3 id="claude-manual">3. 手动配置备选</h3>
+<p>在 Claude Code 设置或环境中设置（请自行替换密钥，<strong>勿</strong>把真实密钥写进文档）：</p>
+<pre><code>export ANTHROPIC_BASE_URL={{API_BASE}}
+export ANTHROPIC_AUTH_TOKEN=你的密钥</code></pre>
+<h3 id="claude-verify">4. 验证</h3>
+<ul>
+<li>终端进入项目目录运行 <code>claude</code>。</li>
+<li>或检查 <code>~/.claude/settings.json</code> 的 <code>env</code> 是否包含 <code>ANTHROPIC_BASE_URL</code> 与 <code>ANTHROPIC_AUTH_TOKEN</code>。</li>
+</ul>
+<h3 id="claude-notes">5. 注意与排错</h3>
+<ul>
+<li>用站点根地址，不要加 <code>/v1</code>；否则容易 404 或路径错乱（见 <a href="#faq-404">FAQ · 404</a> / <a href="#err-404">错误处理 · 404</a>）。</li>
+<li>401 / 密钥无效：见 <a href="#faq-401">FAQ · 401</a> / <a href="#err-401">错误处理 · 401</a>。</li>
+<li>429：见 <a href="#faq-429">FAQ · 429</a> / <a href="#err-429">错误处理 · 429</a>。</li>
+<li>若 Messages 返回 502：按 <a href="#errors">错误处理</a> 收集 <code>X-Request-ID</code> / <code>X-Client-Request-ID</code>、北京时间与模型名反馈管理员。</li>
+</ul>
+<h2 id="grok">八、在 Codex 中使用 Grok</h2>
+<div class="callout">在 Codex 里用 Grok，仍进入侧栏 <strong>Codex</strong> 页添加供应商，并在<strong>模型配置</strong>里写入 Grok 的模型 ID；不要误以为点侧栏其它应用图标就能让 Codex 走 DubDub。</div>
+<p>1）在 DubDub 新建密钥：厂商「其他」，分组 <code>grok</code>。</p>
+<figure class="shot">
+<img alt="新建 grok 密钥：厂商选「其他」，分组选 grok" loading="lazy" src="/handbook/images/img-10.png"/>
+<figcaption>新建 grok 密钥：厂商选「其他」，分组选 grok</figcaption>
+</figure>
+<p>2）在 CC Switch 的 Codex 页添加/选中对应供应商，上游仍按 Codex 的 Responses 原生配置，Base URL 用 <code>{{API_BASE}}</code>。</p>
+<p>3）在「模型配置」里添加模型 ID（<strong>以站内 grok 分组实际列表为准</strong>，勿沿用过期示例）与显示名称，保存后<strong>重启 Codex</strong>。</p>
+<figure class="shot">
+<img alt="编辑供应商：配置 grok 模型" loading="lazy" src="/handbook/images/img-12.png"/>
+<figcaption>在 Codex 供应商的模型配置中填写 Grok 模型 ID</figcaption>
+</figure>
+<p>若要用终端里的 <strong>Grok Build</strong> 编程智能体对接本站，见 <a href="#grok-build">十一、Grok Build</a>。</p>
+<h2 id="imagegen">九、在 Codex 中生图</h2><p>如果只是想在网页里生图，也可以使用侧边栏的「<a href="/use">直接用</a>」或「<a href="/batch-image">批量生图</a>」（若站点已开放）。下面介绍的是给 Codex / Claude Code 使用的本地 skill。</p>
+<ol>
+<li>下载 skill：<a href="/handbook/dubdub-imagegen.zip" download>dubdub-imagegen.zip</a></li>
+<li>安装后，在用户级 <code>AGENTS.md</code> / <code>agent.md</code> 里写明：遇到生图任务使用该 skill。</li>
+<li>在 DubDub 新建 <strong>gpt-image</strong> 相关密钥，写入 skill 目录的 <code>config.json</code>：</li>
+</ol>
+<pre><code>{
+  "base_url": "{{API_BASE}}/v1",
+  "api_key": "填入 gpt-image 的密钥",
+  "model": "gpt-image-2.5-flare"
+}</code></pre>
+<p>Claude Code 也可复用同一套 skill。当前平台上常见生图模型包括 <code>gpt-image-2.5-flare</code>、<code>gpt-image-2.5-sunburst</code> 等。</p>
+<h2 id="grok-media">十、Grok 生图生视频</h2>
+<p>若你不想走 Codex 客户端，也可以用 <strong>OpenAI 兼容 HTTP</strong> 直接调本站网关，完成 Grok 文本对话、生图与生视频。密钥分组请选 <strong>grok</strong>（见 <a href="#keys">二、新建密钥</a> / <a href="#grok">八、使用 Grok</a>）。</p>
+<div class="callout">下文模型 ID 为当前可用示例（如 <code>grok-4.20-non-reasoning</code>、<code>grok-imagine-image</code>、<code>grok-imagine-video-1.5</code>）。实际以 <code>GET /v1/models</code> 或站内 grok 分组列表为准，勿写死唯一模型。</div>
+<h3 id="grok-media-prep">准备</h3>
+<ol>
+<li>在 DubDub 新建 <strong>grok</strong> 分组密钥，立刻离线保存（形如 <code>sk-你的密钥</code>）。</li>
+<li>终端里导出环境变量（名字任选其一）：</li>
+</ol>
+<pre><code>export GROK_API_KEY="sk-你的密钥"
+# 或：export DUBDUB_API_KEY="sk-你的密钥"</code></pre>
+<h3 id="grok-media-common">公共约定</h3>
+<ul>
+<li>Base：<code>{{API_BASE}}</code></li>
+<li>请求头：<code>Authorization: Bearer $GROK_API_KEY</code>、<code>Content-Type: application/json</code></li>
+</ul>
+<h3 id="grok-media-models">先看模型列表</h3>
+<pre><code>curl {{API_BASE}}/v1/models \
+  -H "Authorization: Bearer $GROK_API_KEY"</code></pre>
+<p>从返回的 <code>id</code> 里挑选你要用的文本 / 生图 / 生视频模型。</p>
+<h3 id="grok-media-chat">文本对话</h3>
+<p>接口：<code>POST /v1/chat/completions</code>。示例模型 <code>grok-4.20-non-reasoning</code>（以列表为准）：</p>
+<pre><code>curl -X POST "{{API_BASE}}/v1/chat/completions" \
+  -H "Authorization: Bearer $GROK_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-4.20-non-reasoning",
+    "messages": [{"role":"user","content":"写一句噜噜向噜妹表白"}]
+  }'</code></pre>
+<h3 id="grok-media-image">生图</h3>
+<p>接口：<code>POST /v1/images/generations</code>。示例模型 <code>grok-imagine-image</code>。常用字段：<code>prompt</code>（描述）、<code>aspect_ratio</code>（如 <code>16:9</code>）。</p>
+<pre><code>curl -X POST "{{API_BASE}}/v1/images/generations" \
+  -H "Authorization: Bearer $GROK_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-imagine-image",
+    "prompt": "噜噜头顶小橘子，黄身3D水豚",
+    "aspect_ratio": "16:9"
+  }'</code></pre>
+<h3 id="grok-media-video">生视频（异步三步）</h3>
+<p>视频是<strong>异步</strong>的：先创建任务拿到 <code>request_id</code>，再轮询状态，最后下载成品。示例模型 <code>grok-imagine-video-1.5</code>。</p>
+<p><strong>1）创建任务</strong> — <code>POST /v1/videos/generations</code>：</p>
+<pre><code>curl -X POST "{{API_BASE}}/v1/videos/generations" \
+  -H "Authorization: Bearer $GROK_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-imagine-video-1.5",
+    "prompt": "噜噜向噜妹表白，头顶带绿蒂小橘子",
+    "duration": 10,
+    "aspect_ratio": "16:9",
+    "resolution": "720p",
+    "generate_audio": true
+  }'</code></pre>
+<p>成功时返回形如 <code>{"request_id":"…"}</code>。记下这个 ID。</p>
+<p><strong>2）轮询状态</strong> — <code>GET /v1/videos/&lt;request_id&gt;</code>：</p>
+<pre><code>curl "{{API_BASE}}/v1/videos/<request_id>" \
+  -H "Authorization: Bearer $GROK_API_KEY"</request_id></code></pre>
+<p>当 <code>status</code> 为 <code>done</code> 时，响应里的 <code>video.url</code> 常常是<strong>相对路径</strong>（例如 <code>/v1/videos/&lt;id&gt;/content</code>）。请拼到站点根：<code>{{API_BASE}}</code> + 相对路径。</p>
+<p><strong>3）下载成品</strong>（同样要带 Bearer）：</p>
+<pre><code>curl -L "{{API_BASE}}/v1/videos/<request_id>/content" \
+  -H "Authorization: Bearer $GROK_API_KEY" \
+  -o out.mp4</request_id></code></pre>
+<div class="notice">下载与轮询都必须带 <code>Authorization: Bearer …</code>；相对 URL 不要直接丢进浏览器当公开链接用。</div>
+<h3 id="grok-media-troubleshoot">排错</h3>
+<ul>
+<li>偶发返回 <code>no available accounts</code>：稍后再试或指数退避重试即可。</li>
+<li>401 / 404 / 429 等：见 <a href="#faq">十二、常见问题</a> 与 <a href="#errors">十三、错误处理</a>。</li>
+<li>模型名报错：回到 <code>GET /v1/models</code>，确认该 ID 仍在你密钥的 grok 分组内。</li>
+</ul>
+<h2 id="grok-build">十一、在 Grok Build 中使用</h2>
+<p>Grok Build 是 xAI 提供的终端编程智能体，可在交互式界面（TUI）、无头脚本，或通过 ACP 接到其它应用里使用。要让它走 DubDub 的 <code>grok</code> 分组，不必登录 xAI 账号，按下面把自定义模型指到本站即可。</p>
+<div class="callout">模型 ID 必须以站内 <code>grok</code> 分组实际列表为准，勿沿用过期示例。官方说明见 <a href="https://docs.x.ai/build/overview" rel="noopener" target="_blank">Grok Build 文档</a> 与 <a href="https://x.ai/changelog/build" rel="noopener" target="_blank">更新日志</a>。</div>
+<h3 id="grok-build-install">安装</h3>
+<p>macOS / Linux：</p>
+<pre><code>curl -fsSL https://x.ai/cli/install.sh | bash</code></pre>
+<p>Windows（PowerShell）：</p>
+<pre><code>irm https://x.ai/cli/install.ps1 | iex</code></pre>
+<h3 id="grok-build-key">准备密钥</h3>
+<p>在 DubDub 新建密钥：厂商「其他」，分组 <code>grok</code>（见 <a href="#keys">二、新建密钥</a> / <a href="#grok">八、使用 Grok</a>）。立刻离线保存。</p>
+<pre><code>export DUBDUB_API_KEY="sk-你的密钥"</code></pre>
+<h3 id="grok-build-config">写入自定义模型</h3>
+<p>编辑用户级配置 <code>~/.grok/config.toml</code>（Windows 为 <code>%USERPROFILE%\.grok\config.toml</code>）：</p>
+<pre><code>[model.dubdub-grok]
+model = "填入站内 grok 分组的模型 ID"
+base_url = "{{API_BASE}}/v1"
+name = "DubDub Grok"
+env_key = "DUBDUB_API_KEY"
+api_backend = "chat_completions"
+
+[models]
+default = "dubdub-grok"</code></pre>
+<p>默认按 OpenAI 兼容的 Chat Completions，Base URL 用 <code>{{API_BASE}}/v1</code>。若该模型需要 Responses 原生协议，把 <code>api_backend</code> 改成 <code>responses</code>，并把 <code>base_url</code> 改成站点根 <code>{{API_BASE}}</code>（不要多写 <code>/v1</code>）。密钥不要写进配置文件，用 <code>env_key</code> 指向环境变量。</p>
+<h3 id="grok-build-use">启动</h3>
+<pre><code>cd your-project
+grok inspect
+grok</code></pre>
+<p><code>grok inspect</code> 可确认当前目录读到了哪些配置。进入界面后用 <code>/model</code> 切换模型；无头模式示例：</p>
+<pre><code>grok -p "Explain this repo" -m dubdub-grok</code></pre>
+<h3 id="grok-build-tips">注意</h3>
+<ul>
+<li>改完 <code>config.toml</code> 或换模型后，重新开一次 <code>grok</code>。</li>
+<li>401 / 404 / 429：见 <a href="#faq">十二、常见问题</a> 与 <a href="#errors">十三、错误处理</a>。</li>
+<li>模型名报错：回到站内 grok 分组列表或 <code>GET /v1/models</code>，确认 ID 仍有效。</li>
+</ul>
+<h2 id="faq">十二、常见问题</h2>
+<h3 id="faq-cli-vs-client">终端可用，客户端不可用？</h3>
+<p>多数是网络问题。请检查代理是否开启、是否为 TUN 模式，以及 Codex 客户端是否已在改配置后重启。</p>
+<h3 id="faq-new-model">新模型已上线，但客户端/终端列表里没有？</h3>
+<p>例如 <code>gpt-6-sol</code> 已在 DubDub 可用，但本地列表未刷新时：</p>
+<p><strong>方式 1：</strong>在 CC Switch 的「模型配置」里加上新模型 ID（如 <code>gpt-6-sol</code>），启用该供应商后重启客户端。是否命中可到 DubDub 后台看请求记录。</p>
+<figure class="shot">
+<img alt="常见问题：在 CC Switch 把默认模型/模型配置设为 gpt-6-sol" loading="lazy" src="/handbook/images/img-14.png"/>
+<figcaption>常见问题：在 CC Switch 把默认模型/模型配置设为 gpt-6-sol</figcaption>
+</figure>
+<p><strong>方式 2：</strong>CLI 显式指定模型：</p>
+<pre><code>codex --model gpt-6-sol</code></pre>
+<figure class="shot">
+<img alt="常见问题：在 Codex 客户端用滑杆选择 6 Sol 模型" loading="lazy" src="/handbook/images/img-15.png"/>
+<figcaption>常见问题：在 Codex 客户端用滑杆选择 6 Sol 模型</figcaption>
+</figure>
+<div class="table-wrap">
+<table>
+<thead><tr><th>场景</th><th>建议</th></tr></thead>
+<tbody>
+<tr><td>Claude Code 换供应商</td><td>一般不用重启</td></tr>
+<tr><td>Codex 客户端 / CLI</td><td>改完配置后重启</td></tr>
+<tr><td>编辑器插件</td><td>打开「应用到插件」后重启编辑器</td></tr>
+<tr><td>跨厂商模型（如 Codex 用 Grok）</td><td>仍在侧栏 Codex 页添加供应商，用「模型配置」填写模型 ID</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="faq-401">返回 401 或提示 API Key 无效</h3>
+<ul>
+<li>检查密钥是否复制完整，前后是否带有空格或引号。</li>
+<li>检查密钥是否启用、是否已选择分组。</li>
+<li>确认客户端没有继续读取旧环境变量或旧配置文件。</li>
+</ul>
+<p>更完整的排查步骤见 <a href="#err-401">十三、错误处理 · 401 Unauthorized</a>。</p>
+<h3 id="faq-404">返回 404</h3>
+<ul>
+<li>OpenAI 兼容客户端一般使用带 <code>/v1</code> 的 Base URL（如 <code>{{API_BASE}}/v1</code>）。</li>
+<li>Claude Code 一般使用不带 <code>/v1</code> 的站点根地址（如 <code>{{API_BASE}}</code>）。</li>
+<li>检查最终请求是否出现 <code>/v1/v1/...</code>。</li>
+</ul>
+<p>更完整的排查步骤见 <a href="#err-404">十三、错误处理 · 404 Not Found</a>。</p>
+<h3 id="faq-model-not-found">提示 model not found 或模型不可用</h3>
+<ul>
+<li>模型名必须与密钥分组支持的 ID 完全一致，包括大小写、横线和版本号。</li>
+<li>不要照搬其他平台教程里的模型名。</li>
+<li>回到 DubDub「使用密钥」窗口重新生成配置，或在 CC Switch 的「模型配置」里按本站实际 ID 填写。</li>
+</ul>
+<h3 id="faq-old-endpoint">修改配置后仍然走旧地址</h3>
+<ul>
+<li>完全退出客户端，而不是只关闭一个对话窗口。</li>
+<li>检查终端、系统环境变量和配置文件中是否同时存在两套地址。</li>
+<li>Codex、Claude Code 等客户端修改配置后建议新建会话；Codex 客户端 / CLI 建议重启后再试（与 CC Switch v4 直连行为一致）。</li>
+</ul>
+<h3 id="faq-no-usage">请求成功但没有使用记录</h3>
+<p>确认客户端使用的是本站（DubDub / <code>{{API_BASE}}</code>）中转地址，而不是官方默认地址或其他服务商地址。等待几秒后刷新使用记录；仍未出现时，记录测试时间并联系管理员核查。</p>
+<h3 id="faq-multiplier">使用记录里出现 ×2 等倍率标记，是重复扣费吗</h3>
+<p>不是。这是长上下文档位标记：GPT 系约超过 27 万 token、Grok 系超过 20 万 token 的请求按更高档位计价。详见本站计费规则说明。</p>
+<h3 id="faq-price-diff">同样的对话，为什么这次比上次贵</h3>
+<p>常见原因：一是部分模型分时计价，高峰时段单价更高；二是本次请求缓存未命中，输入按正常价而不是缓存价计费；三是请求进入了长上下文档位。可以在使用记录明细里核对单价与倍率。</p>
+<h3 id="faq-429">请求频繁返回 429</h3>
+<p>429 表示触发速率限制。每个密钥都有每分钟请求数与 token 数限制（滚动窗口）。降低并发、减少自动重试，或稍后再试；程序里建议对 429 做指数退避。分类表与退避建议见 <a href="#err-429">十三、错误处理 · 429 Rate Limit</a>。</p>
+<h3 id="faq-suffix">模型名带 -fast、-flex、-flash 后缀是什么</h3>
+<ul>
+<li><code>-flash</code> 是同家族的轻量快速版（如 <code>glm-5.3-flash</code>），单价显著更低。</li>
+<li><code>-fast</code> 与 <code>-flex</code> 是速度档位变体，分别更快更贵、更慢更便宜。</li>
+<li>详见本站计费规则与模型选型相关说明。</li>
+</ul>
+<h2 id="errors">十三、错误处理</h2>
+<p>本页按本站当前接口与错误日志能力整理。请以实际错误正文和请求 ID 为准，不要只看 HTTP 状态码。日常配置与排错也可先看 <a href="#faq">十二、常见问题</a>。</p>
+<div class="callout"><strong>排查流程：</strong>看错误码 → 看请求 ID → 按原因处理。</div>
+<p>优先保存：完整错误正文、北京时间（Asia/Shanghai）、模型名、客户端与版本、实际请求地址、以及响应头中的 <code>X-Request-ID</code> / <code>X-Client-Request-ID</code>。向管理员反馈时<strong>勿发送</strong>完整 API 密钥、<code>Authorization</code>、密码、验证码或含密钥的配置；需要区分密钥时只保留首尾少量字符。</p>
+<h3 id="err-quick">快速判断</h3>
+<ul>
+<li><strong>客户端 / 请求：</strong><code>400</code> / <code>401</code> / <code>404</code> / <code>413</code></li>
+<li><strong>额度 / 并发：</strong><code>429</code> / usage limit</li>
+<li><strong>上游 / 容量：</strong><code>403</code> / <code>502</code> / <code>503</code></li>
+<li><strong>流式 / 网络：</strong>stream / reset / GOAWAY</li>
+<li><strong>Cloudflare 入口：</strong><code>522</code> / <code>524</code> / <code>cf-ray</code></li>
+<li><strong>请求过重：</strong>压缩上下文 / 拆分任务</li>
+</ul>
+<h3 id="err-400">400 Bad Request</h3>
+<p>常见原因：JSON 格式错误、必填字段缺失或类型不对、协议路径与客户端不匹配、请求体未完整到达（例如 <code>Failed to read request body</code>）。</p>
+<ul>
+<li>对照站内「使用密钥」生成的配置与本手册 <a href="#config-gpt">五、配置 Codex</a>，确认 Content-Type、字段名与接口路径。</li>
+<li>若请求体被代理截断或上传中断，先检查网络与客户端超时，再重发完整请求。</li>
+<li>在修正配置之前，不要对同一错误连续重试。</li>
+</ul>
+<h3 id="err-401">401 Unauthorized</h3>
+<p>密钥错误、未携带、已停用，或 <code>Bearer</code> 格式不正确。也可先看 <a href="#faq-401">FAQ · 401</a>。</p>
+<ul>
+<li>在站内 <a href="/keys">API 密钥</a> 页确认密钥已启用，并已选择正确分组。</li>
+<li>请求头应为 <code>Authorization: Bearer sk-...</code>（注意 <code>Bearer</code> 与密钥之间有一个空格）。</li>
+<li>检查复制时是否带入首尾空格、引号，或客户端仍在读取旧环境变量 / 旧配置文件。</li>
+<li>核对 Base URL：OpenAI 兼容客户端用 <code>{{API_BASE}}/v1</code>；Claude Code 用站点根 <code>{{API_BASE}}</code>。</li>
+</ul>
+<h3 id="err-403">403 Forbidden</h3>
+<p>可能原因包括：余额不足、密钥过期、分组权限不足、IP / 内容策略拦截、模型未对当前密钥开放，或上游鉴权 / 地区异常。</p>
+<ul>
+<li><strong>个人偶发：</strong>检查余额、密钥有效期、分组与模型权限，换一个已知可用的模型做短请求验证。</li>
+<li><strong>多人同时出现：</strong>更可能是上游或入口侧限制，暂停批量重试，记录时间与请求 ID 后联系管理员。</li>
+</ul>
+<h3 id="err-404">404 Not Found</h3>
+<p>多为 Base URL / 路径错误、出现 <code>/v1/v1/...</code>、模型名写错，或 OpenAI 与 Anthropic 协议路径混用。也可先看 <a href="#faq-404">FAQ · 404</a>。</p>
+<ul>
+<li>OpenAI 兼容：Base URL 填 <code>{{API_BASE}}/v1</code>。</li>
+<li>Claude Code：一般用根地址 <code>{{API_BASE}}</code>，不要再叠一层 <code>/v1</code>。</li>
+<li>模型 ID 以站内「使用密钥」窗口生成的配置为准，勿照搬其他平台教程。</li>
+</ul>
+<h3 id="err-413">413 Payload Too Large</h3>
+<p>请求体或上下文超过限制。错误正文里可能出现 <code>too_big</code>、<code>maximum context length</code> 等字样。</p>
+<ul>
+<li>压缩提示词、删除过长历史、拆分文件或减少附图。</li>
+<li>把大任务拆成多轮短请求，而不是一次塞满上下文。</li>
+<li>仅提高客户端超时<strong>不会</strong>改变大小上限。</li>
+</ul>
+<h3 id="err-429">429 Rate Limit</h3>
+<p>速率 / 额度 / 并发类限制。简要说明见 <a href="#faq-429">FAQ · 429</a>。请按错误正文区分类型：</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>错误提示</th><th>含义</th><th>正确处理</th></tr></thead>
+<tbody>
+<tr><td>API key 额度已用完</td><td>当前密钥独立额度耗尽</td><td>补充额度或换密钥</td></tr>
+<tr><td><code>USAGE_LIMIT_EXCEEDED</code> / The usage limit has been reached</td><td>订阅或上游账号用量限制</td><td>等待重置或调整用量计划</td></tr>
+<tr><td>Concurrency limit exceeded / Too many pending requests</td><td>并发或等待队列已满</td><td>降低并发，稍后再试</td></tr>
+<tr><td>Upstream rate limit exceeded</td><td>上游临时限流</td><td>指数退避；必要时换模型或分组</td></tr>
+</tbody>
+</table>
+</div>
+<p>临时限流建议约 <strong>2 / 4 / 8 秒</strong>退避，并加少量随机延迟；不要无限重试。</p>
+<h3 id="err-stream">流式断开 / Stream Error</h3>
+<p>常见提示包括 stream error、connection reset、GOAWAY、incomplete chunked encoding、unexpected EOF 等。</p>
+<ul>
+<li>半截流式输出<strong>不等于</strong>请求成功；以最终是否完整结束、以及站内使用记录为准。</li>
+<li>保存最后一段输出与请求 ID，重启客户端后再试。</li>
+<li>检查本地代理 / VPN 是否稳定；缩短上下文后做一次短测试。</li>
+<li>断开后不要快速连打重试。</li>
+</ul>
+<h3 id="err-heavy">负载过高 / 请求太大</h3>
+<ul>
+<li>压缩上下文、拆分任务，优先使用流式输出。</li>
+<li>失败后等待 <strong>30–60 秒</strong>再试，避免在高峰瞬间叠加重试。</li>
+</ul>
+<h3 id="err-500">500 Internal Server Error</h3>
+<ul>
+<li>偶发可做有限次重试（例如 1–2 次，带退避）。</li>
+<li>若持续出现，向管理员提供多个请求 ID、北京时间、模型与客户端信息。</li>
+</ul>
+<h3 id="err-502">502 Bad Gateway</h3>
+<ul>
+<li>多为上游或中间代理异常：等待数秒后重试 1–2 次。</li>
+<li>可到站内使用记录 / 渠道相关页面查看近期状态（若后台有展示）。</li>
+<li>若大量用户同时出现 502：停止批量重试，联系管理员。</li>
+</ul>
+<h3 id="err-503">503 Service Unavailable</h3>
+<p>错误正文可能包含 <code>no available accounts</code> 等容量类提示。</p>
+<ul>
+<li>等待服务恢复后再试；连续并发重试通常无效，反而加重排队。</li>
+</ul>
+<h3 id="err-504">504 Gateway Timeout</h3>
+<ul>
+<li>减小请求规模、开启流式输出、适当延长读超时。</li>
+<li>仅做有限次重试，并保留请求 ID。</li>
+</ul>
+<h3 id="err-522">522 Cloudflare Connection Timeout</h3>
+<p>Cloudflare 无法在时限内连上源站。这通常<strong>不是</strong>密钥写错。</p>
+<ul>
+<li>核对客户端最终请求域名是否为 <code>{{API_HOST}}</code>，本地代理是否改写了域名。</li>
+<li>保存页面上的 <code>cf-ray</code>（若有）与发生时间，便于管理员对照入口日志。</li>
+</ul>
+<h3 id="err-524">524 Cloudflare Timeout</h3>
+<p>Cloudflare 已连上源站，但源站响应过久。</p>
+<ul>
+<li>开启流式输出、压缩上下文、拆分大任务。</li>
+<li>避免在同一超大请求上反复硬重试。</li>
+</ul>
+<h3 id="err-cloudflare">Cloudflare 相关说明</h3>
+<p>本站公开入口主要为 <code>{{API_BASE}}</code>（经 Cloudflare）。出现带 <code>cf-ray</code> 的错误页时，可按层理解：</p>
+<ul>
+<li><code>522</code>：CF ↔ 源站连通问题</li>
+<li><code>524</code>：源站处理过慢</li>
+<li><code>413</code> / <code>429</code>：仍按上文 payload / 限流规则处理，不要误当成「换域名就能好」</li>
+</ul>
+<div class="notice">DubDub 以单入口 <code>{{API_HOST}}</code> 为准。请核对客户端最终请求域名是否为 <code>{{API_HOST}}</code>、本地代理是否改写域名；不要假设存在第二个「加速域名」。</div>
+<h3 id="err-checklist">客户端检查清单</h3>
+<p>适用于 Codex / Claude Code / Cursor / NewAPI 等：</p>
+<ul>
+<li>Base URL 与协议匹配：OpenAI 兼容用 <code>{{API_BASE}}/v1</code>；Claude Code 用 <code>{{API_BASE}}</code>，勿重复叠加 <code>/v1</code>。</li>
+<li>密钥已启用，模型 ID 在该密钥分组支持列表内。</li>
+<li>流式开关、代理稳定性、超大上下文、读超时过短、快速自动重试等是否合理。</li>
+<li>配置步骤见 <a href="#config-gpt">五、配置 Codex</a> 与 <a href="#claude-code">七、Claude Code</a>。</li>
+</ul>
+<h3 id="err-curl">最小诊断 curl（单入口）</h3>
+<pre><code>export DUBDUB_API_KEY="在这里填写你的 API 密钥"
+curl -i {{API_BASE}}/v1/models \
+  -H "Authorization: Bearer $DUBDUB_API_KEY" \
+  -H "X-Request-ID: dubdub-error-guide"</code></pre>
+<p>请保存 HTTP 状态码、错误正文，以及响应中的 <code>X-Request-ID</code> / <code>X-Client-Request-ID</code>。对外分享前务必删除完整密钥。</p>
+<h3 id="err-feedback">反馈时请提供</h3>
+<ul>
+<li>截图与完整错误正文</li>
+<li>北京时间（Asia/Shanghai）</li>
+<li><code>X-Request-ID</code> 与 <code>X-Client-Request-ID</code>（若都有）</li>
+<li>入口路径、模型名、客户端版本与操作系统</li>
+<li>是否流式、是否已收到部分内容</li>
+<li>是否使用代理 / VPN、已重试次数</li>
+</ul>
+ 小白入门须保持手册最后一章；新操作章节插在 FAQ 之前 
+<h2 id="beginner">十四、小白入门</h2>
+<h3 id="beginner-why-last">A. 这一章为什么在最后？读完能做什么</h3>
+<p>前面各章是「动手说明书」：注册、建密钥、装 CC Switch、配 Codex / Claude Code、FAQ 与错误处理。那些步骤你随时可以按链接跳过去做。</p>
+<p>本章放在<strong>全文最后</strong>，专门用白话讲清：终端是什么、AI 编程助手在干什么、Claude Code / Codex 的配置文件都叫啥、Skill / MCP / 插件怎么区分。这样你不会在还没概念时被一堆路径名劝退；也不会在配置到一半时找不到「这是啥意思」。</p>
+<p><strong>读完你应该能：</strong></p>
+<ul>
+<li>打开电脑上的终端，用 <code>cd</code> 走进自己的项目文件夹；</li>
+<li>说清 DubDub、Claude Code、Codex、Grok Bot、Grok 模型各自是什么角色；</li>
+<li>知道密钥、Base URL、模型 ID 填错会怎样，以及该去哪一章对照；</li>
+<li>知道 <code>CLAUDE.md</code> / <code>AGENTS.md</code>、Skill、MCP、插件大概管什么，而不是一上来全装。</li>
+</ul>
+<h3 id="beginner-terminal">B. 什么是「终端」（小白必读）</h3>
+<p>终端（也叫命令行、CLI 窗口）是一个<strong>用文字跟电脑说话</strong>的窗口。你输入一行命令，按回车，电脑执行并打印结果。没有花哨按钮，但程序员常用它，因为指令精确、可复制、可重复。</p>
+<p>平时你「双击图标」打开微信、浏览器，那是图形界面。终端不取代这些软件；它只是另一扇门。Claude Code、Codex 的 CLI 形态，就是要你在这扇门里输入 <code>claude</code> 或 <code>codex</code>，让助手在<strong>当前文件夹对应的项目</strong>里工作。</p>
+<div class="tips">
+<div class="tip"><strong>Windows</strong><span>按 <kbd>Win</kbd>+<kbd>R</kbd>，输入 <code>cmd</code> 回车；或在开始菜单搜「终端 / Terminal / Windows Terminal」。</span></div>
+<div class="tip"><strong>macOS</strong><span>打开「终端.app」，或按 <kbd>Command</kbd>+<kbd>空格</kbd> 搜「终端」。</span></div>
+<div class="tip"><strong>Linux</strong><span>用发行版自带的「终端」应用即可。</span></div>
+</div>
+<figure class="shot">
+<img alt="终端示意：输入 pwd、ls、cd 等命令并查看结果" loading="lazy" src="/handbook/images/img-18-beginner-terminal.png"/>
+<figcaption>终端示意：用文字下指令，回车后看结果（示例为 Linux/macOS 风格提示符）</figcaption>
+</figure>
+<p><strong>你会看到的东西：</strong>一行提示符（常含用户名、路径），光标在闪。常见入门动作：</p>
+<ol>
+<li>输入 <code>cd</code> 再空格，再跟上项目路径，回车——意思是「走进这个文件夹」。（Windows 路径可能像 <code>cd D:\work\my-app</code>；macOS/Linux 像 <code>cd ~/work/my-app</code>。）</li>
+<li>从手册复制一条命令，粘贴到终端（Windows 终端常是右键粘贴；macOS 用 <kbd>Command</kbd>+<kbd>V</kbd>），按回车执行。</li>
+<li>若报错，先<strong>整段复制</strong>错误文字（别只截一半），再去 <a href="#faq">常见问题</a> / <a href="#errors">错误处理</a> 对照，或发给管理员时一并附上。</li>
+</ol>
+<p>为什么 Claude Code / Codex 常要在终端里跑？因为它们需要一个「当前工作目录」当项目根，才能读你的文件、按你的授权改文件、跑构建或测试命令。图形扩展（VS Code / Cursor 插件）底层往往也在干类似的事，只是界面更友好。</p>
+<h3 id="beginner-analogy">C. AI 编程助手在干什么（对照网页聊天）</h3>
+<p>用网页版 ChatGPT / Claude 时，你多半是：自己打开文件 → 复制一段代码 → 粘贴到对话框 → 再把回答粘回去。助手<strong>看不到</strong>你整份项目，也<strong>不能</strong>直接在你电脑上保存文件。</p>
+<p><strong>编程代理</strong>（Claude Code、Codex）更像请了一个能进项目目录的帮手：在你授权后，它可以读多个文件、提出修改、写入磁盘、在终端执行命令，并根据结果继续迭代。你仍然负责审查改动是否合理。</p>
+<figure class="shot">
+<img alt="对照：网页聊天靠复制粘贴；编程代理可进项目读文件、改文件、跑命令" loading="lazy" src="/handbook/images/img-19-beginner-chat-vs-agent.png"/>
+<figcaption>网页聊天靠你复制粘贴；编程代理（Claude Code / Codex）在授权下直接进项目工作</figcaption>
+</figure>
+<p><strong>本站 DubDub</strong> 不替代这些软件。它提供 API <strong>中转地址</strong>和<strong>密钥</strong>，让你已安装的客户端连到本站当前可用的模型。装软件、改配置的逐步操作在前面章节；本章只帮你建立地图。</p>
+<h3 id="beginner-glossary">D. 核心名词表</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>名词</th><th>白话解释</th></tr></thead>
+<tbody>
+<tr><td>Base URL / 请求地址</td><td>客户端把请求发到哪里。本站根地址是 <code>{{API_BASE}}</code>。</td></tr>
+<tr><td>API Key / 密钥</td><td>一串以 <code>sk-</code> 开头的通行证，证明请求属于你的额度。勿外传、勿进公开仓库。</td></tr>
+<tr><td>模型 ID</td><td>告诉服务端用哪一个模型，必须与站内列表<strong>逐字一致</strong>。</td></tr>
+<tr><td>分组</td><td>建密钥时选的厂商/能力桶（Claude、OpenAI、grok 等）。密钥只能打到该分组允许的模型。</td></tr>
+<tr><td>CLI</td><td>命令行程序。例如在终端输入 <code>claude</code> 或 <code>codex</code>。</td></tr>
+<tr><td>扩展 / 插件</td><td>装进 VS Code、Cursor、JetBrains 等编辑器的附加功能，把助手嵌进侧栏或面板。</td></tr>
+<tr><td>直连 / 路由 / 聚合</td><td>CC Switch 的三种工作模式；点标签≠真正切换。详见 <a href="#ccswitch-notes">四、CC Switch 注意事项</a>。</td></tr>
+<tr><td>OpenAI 兼容 vs Anthropic Messages</td><td>两套常见接口习惯。多数 Chat 客户端 Base URL 常带 <code>/v1</code>；Claude Code 与 Codex Responses 原生一般用站点根 <code>{{API_BASE}}</code>（不带 <code>/v1</code>）。</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="beginner-compare">E. Claude Code / Codex / Grok Bot vs Grok 模型</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>名称</th><th>出品方</th><th>它是什么</th><th>和本站的关系</th></tr></thead>
+<tbody>
+<tr>
+<td><strong>Claude Code</strong></td>
+<td>Anthropic</td>
+<td>编程工具（CLI、编辑器扩展、Desktop 等）</td>
+<td>用本站 Claude 分组密钥 + 站点根地址；见 <a href="#claude-code">七、Claude Code</a></td>
+</tr>
+<tr>
+<td><strong>Codex</strong></td>
+<td>OpenAI</td>
+<td>编程工具（CLI、IDE、App/Web）</td>
+<td>Responses 原生 + <code>{{API_BASE}}</code>；见 <a href="#config-gpt">五、配置 Codex</a></td>
+</tr>
+<tr>
+<td><strong>Grok Bot</strong></td>
+<td>Cursor / xAI 生态常见说法</td>
+<td>「有电脑的 AI 队友」助手产品（云电脑、浏览器、终端等）</td>
+<td>独立产品，<strong>不是</strong>本站安装包，不必经本站域名安装</td>
+</tr>
+<tr>
+<td><strong>Grok 模型</strong></td>
+<td>xAI</td>
+<td>可对话、可辅助编程的模型家族</td>
+<td>站内厂商「其他」、分组 <code>grok</code> 中转；ID 以分组列表为准；见 <a href="#grok">八、使用 Grok</a></td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="shot">
+<img alt="四个角色对照：Claude Code、Codex、Grok Bot、Grok 模型（文字标签示意）" loading="lazy" src="/handbook/images/img-20-beginner-roles.png"/>
+<figcaption>四个角色对照（文字标签，非官方徽标）：工具产品 vs 模型 API 要分清</figcaption>
+</figure>
+<div class="callout">口语里有人把「Grok」混着说。问清楚对方指的是<strong>助手产品（Grok Bot）</strong>还是<strong>模型 API（可中转）</strong>。本手册配置章节默认指后者。</div>
+<h3 id="beginner-claude">F. Claude Code：怎么用 + 配置文件世界</h3>
+<p><strong>是什么：</strong>Anthropic 的代理式编程工具，能在你授权下理解仓库、改文件、跑命令。</p>
+<p><strong>常见表面（以官方为准）：</strong></p>
+<ul>
+<li><strong>CLI：</strong>终端里运行 <code>claude</code>（完整安装与本站配置见 <a href="#claude-code">七、Claude Code 使用</a>）。</li>
+<li><strong>VS Code / Cursor 扩展：</strong>扩展市场搜 Claude Code；提供面板、内联 diff、<code>@</code> 提及等。扩展会服务面板场景；若你在编辑器<strong>集成终端</strong>直接敲 <code>claude</code>，仍建议本机已装独立 CLI。</li>
+<li><strong>JetBrains：</strong>有官方/生态集成，在 IDE 内使用。</li>
+<li><strong>Desktop 等：</strong>还有桌面与其它形态；入门不必一次装齐。</li>
+</ul>
+<p><strong>走本站：</strong>密钥选 Anthropic / Claude 分组；请求地址用站点根 <code>{{API_BASE}}</code>；认证常见 <code>ANTHROPIC_AUTH_TOKEN</code>（或环境变量 <code>ANTHROPIC_BASE_URL</code> + 令牌）。推荐 <a href="#download">CC Switch</a> 直连，步骤见 Claude Code 章。</p>
+<h4 id="beginner-claude-config">配置地图（Claude Code）</h4>
+<p>可以把这些文件想成「给助手看的说明书 + 开关」。名称以官方文档为准，路径在不同版本可能略有差异。</p>
+<figure class="shot">
+<img alt="Claude Code 配置地图：CLAUDE.md、.claude/settings.json、skills、rules、.mcp.json" loading="lazy" src="/handbook/images/img-21-beginner-claude-config.png"/>
+<figcaption>Claude Code 配置地图：项目根的说明书、开关、Skill 与 MCP</figcaption>
+</figure>
+<div class="table-wrap">
+<table>
+<thead><tr><th>你想做什么</th><th>常见落点</th><th>白话</th></tr></thead>
+<tbody>
+<tr><td>每次进这个项目都先记住约定</td><td>项目根 <code>CLAUDE.md</code>（也可用 <code>AGENTS.md</code> 代替/并存，视版本与习惯）</td><td>项目「宪法」：编码风格、目录说明、禁止事项</td></tr>
+<tr><td>改权限、hooks、环境变量、默认模型</td><td><code>~/.claude/settings.json</code>（用户级）与项目 <code>.claude/settings.json</code>；个人覆盖常用 <code>settings.local.json</code></td><td>本站相关 env 常写在这里：<code>ANTHROPIC_BASE_URL</code>、<code>ANTHROPIC_AUTH_TOKEN</code></td></tr>
+<tr><td>按主题拆规则，或只对某路径生效</td><td><code>.claude/rules/*.md</code></td><td>比一整份 CLAUDE.md 更好维护的分册规则</td></tr>
+<tr><td>可复用流程，按需调用</td><td>项目 <code>.claude/skills/&lt;名&gt;/SKILL.md</code> 或用户 <code>~/.claude/skills</code></td><td>会话里 <code>/名字</code> 调用，或按描述被自动选用。<strong>CLAUDE.md = 总是记住；Skill = 按需</strong></td></tr>
+<tr><td>连接 Issue、设计稿、数据库等外部系统</td><td>项目 <code>.mcp.json</code>（MCP）</td><td>给助手接「外设」的协议配置</td></tr>
+<tr><td>从市场装现成扩展包</td><td>会话里 <code>/plugin</code>；官方市场常见 <code>claude-plugins-official</code></td><td>例如 <code>/plugin install 名@claude-plugins-official</code>。<strong>插件可在本机以你的权限跑代码，安装前看清组件</strong></td></tr>
+<tr><td>子代理 / 斜杠命令</td><td>agents、commands（进阶）</td><td>入门可先跳过，跑通主流程再说</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>产品线定位（官方家庭角色，不是本站对每个 ID 的评测）：</strong>Haiku ≈ 更快更省；Sonnet ≈ 日常主力；Opus ≈ 更重任务。下面只列本站接口当时可见的模型 ID，<strong>不对单个带日期版本编造「谁更强」</strong>。</p>
+<div class="callout">以下 ID 来自本站接口当时可见列表（2026-10-23 抓取），会随分组与上游变更；下单以你密钥分组 /「使用密钥」窗口为准。</div>
+<details>
+<summary>Haiku 系（2）</summary>
+<ul class="model-ids">
+<li><code>claude-3-5-haiku-20241022</code></li>
+<li><code>claude-haiku-4-5-20251001</code></li>
+</ul>
+</details>
+<details>
+<summary>Sonnet 系（9）</summary>
+<ul class="model-ids">
+<li><code>claude-3-5-sonnet-20240620</code></li>
+<li><code>claude-3-5-sonnet-20241022</code></li>
+<li><code>claude-3-7-sonnet-20250219</code></li>
+<li><code>claude-sonnet-4-20250514</code></li>
+<li><code>claude-sonnet-4-5</code></li>
+<li><code>claude-sonnet-4-5-20250929</code></li>
+<li><code>claude-sonnet-4-6</code></li>
+<li><code>claude-sonnet-5</code></li>
+<li><code>claude-sonnet-5-5</code></li>
+</ul>
+</details>
+<details>
+<summary>Opus 系（10）</summary>
+<ul class="model-ids">
+<li><code>claude-opus-4-20250514</code></li>
+<li><code>claude-opus-4-1-20250805</code></li>
+<li><code>claude-opus-4-5-20251101</code></li>
+<li><code>claude-opus-4-6</code></li>
+<li><code>claude-opus-4-7</code></li>
+<li><code>claude-opus-4-8</code></li>
+<li><code>claude-opus-4.8</code></li>
+<li><code>claude-opus-5</code></li>
+<li><code>claude-opus-5-5</code></li>
+<li><code>claude-opus-5.5</code></li>
+</ul>
+</details>
+<details>
+<summary>fable 等站内名（3）</summary>
+<ul class="model-ids">
+<li><code>cc-claude-fable-5</code></li>
+<li><code>claude-fable-5</code></li>
+<li><code>claude-fable-5-1</code></li>
+</ul>
+</details>
+<h3 id="beginner-codex">G. Codex：怎么用 + 配置文件世界</h3>
+<p><strong>是什么：</strong>OpenAI 的编程代理。CLI 常见命令是 <code>codex</code>、<code>codex exec</code>；另有 IDE 扩展、Codex 应用/桌面端与 Web。具体产品名以 OpenAI 当前发布为准。</p>
+<p><strong>怎么用：</strong>各端步骤见 <a href="#use-gpt">六、在各端使用 GPT / Codex</a>；本站侧配置见 <a href="#config-gpt">五、配置 CC Switch（Codex）</a>。</p>
+<p><strong>走本站：</strong>在 CC Switch 的 Codex 页选 <strong>Responses（原生）</strong>，Base URL 填 <code>{{API_BASE}}</code>（一般不要重复加 <code>/v1</code>，除非表单写明）。改模型或供应商后请<strong>重启 Codex</strong>。</p>
+<h4 id="beginner-codex-config">配置地图（Codex）</h4>
+<figure class="shot">
+<img alt="Codex 配置地图：~/.codex/config.toml、AGENTS.md、.agents/skills、MCP" loading="lazy" src="/handbook/images/img-22-beginner-codex-config.png"/>
+<figcaption>Codex 配置地图：全局 ~/.codex 与项目内 AGENTS.md / skills</figcaption>
+</figure>
+<div class="table-wrap">
+<table>
+<thead><tr><th>你想做什么</th><th>常见落点</th><th>白话</th></tr></thead>
+<tbody>
+<tr><td>个人默认：模型、审批、沙箱、供应商地址</td><td><code>~/.codex/config.toml</code></td><td>经 CC Switch 直连本站时，常见会写入 Responses 相关项与 <code>base_url = {{API_BASE}}</code>（字段名随版本可能略有差异）</td></tr>
+<tr><td>仅对某个仓库生效的配置</td><td>项目 <code>.codex/config.toml</code></td><td><strong>只应在你信任的项目里加载</strong>；别随便打开不明仓库就允许项目级配置</td></tr>
+<tr><td>常见键（概念）</td><td><code>model</code>、<code>approval_policy</code>、<code>sandbox_mode</code>、以及 model_provider / base_url 一类</td><td>管「用哪个模型、要不要每次问你、沙箱多严、请求打到哪」</td></tr>
+<tr><td>项目说明（总是带上的上下文）</td><td>全局 <code>~/.codex/AGENTS.md</code> + 仓库内层层发现的 <code>AGENTS.md</code>；可用 <code>AGENTS.override.md</code> 覆盖</td><td>合并通常由根到近（越靠近当前目录越具体）；把它当成 Codex 侧的「项目宪法」</td></tr>
+<tr><td>可复用工作流</td><td>Skill：带 <code>SKILL.md</code>；全局常见 <code>~/.agents/skills</code>，仓库 <code>.agents/skills</code></td><td>把多步流程打包，需要时再调用</td></tr>
+<tr><td>外接系统</td><td>在 config 里配置 MCP</td><td>常与 Skill 搭配：Skill 描述流程，MCP 提供工具连接</td></tr>
+<tr><td>安装现成工作流</td><td>插件 / 定制包（进阶）</td><td>官方 customization 常见顺序建议：先写好 <code>AGENTS.md</code> → 再 plugin/skill → 再 MCP → 再 subagents</td></tr>
+</tbody>
+</table>
+</div>
+<p>选模型时 ID 必须与列表<strong>逐字一致</strong>。带 <code>-sol</code> / <code>-luna</code> / <code>-terra</code> / <code>-astra</code> / <code>-mini</code> / <code>-pro</code> / <code>-spark</code> 等后缀的，是站内可见的变体命名；<strong>含义与差价以本站计费/说明为准，此处只列 ID、不臆造差异</strong>（也可对照 <a href="#faq">十二、常见问题</a> 里关于后缀的条目）。图片模型单独一组。</p>
+<div class="callout">以下 ID 来自本站接口当时可见列表（2026-10-23 抓取），会随分组与上游变更；下单以你密钥分组 /「使用密钥」窗口为准。</div>
+<details>
+<summary>其它 / 预览类（3）</summary>
+<ul class="model-ids">
+<li><code>codex-auto-review</code></li>
+<li><code>gpt-4o-audio-preview</code></li>
+<li><code>gpt-4o-realtime-preview</code></li>
+</ul>
+</details>
+<details>
+<summary>GPT-5.2 系（5）</summary>
+<ul class="model-ids">
+<li><code>gpt-5.2</code></li>
+<li><code>gpt-5.2-2025-12-11</code></li>
+<li><code>gpt-5.2-chat-latest</code></li>
+<li><code>gpt-5.2-pro</code></li>
+<li><code>gpt-5.2-pro-2025-12-11</code></li>
+</ul>
+</details>
+<details>
+<summary>GPT-5.3～5.6 系（9）</summary>
+<ul class="model-ids">
+<li><code>gpt-5.3-codex-spark</code></li>
+<li><code>gpt-5.4</code></li>
+<li><code>gpt-5.4-2026-03-05</code></li>
+<li><code>gpt-5.4-mini</code></li>
+<li><code>gpt-5.5</code></li>
+<li><code>gpt-5.6</code></li>
+<li><code>gpt-5.6-luna</code></li>
+<li><code>gpt-5.6-sol</code></li>
+<li><code>gpt-5.6-terra</code></li>
+</ul>
+</details>
+<details>
+<summary>GPT-6 系（5）</summary>
+<ul class="model-ids">
+<li><code>gpt-6</code></li>
+<li><code>gpt-6-astra</code></li>
+<li><code>gpt-6-luna</code></li>
+<li><code>gpt-6-sol</code></li>
+<li><code>gpt-6.1-sol</code></li>
+</ul>
+</details>
+<details>
+<summary>图片模型（5）</summary>
+<ul class="model-ids">
+<li><code>gpt-image-1</code></li>
+<li><code>gpt-image-1.5</code></li>
+<li><code>gpt-image-2</code></li>
+<li><code>gpt-image-2.5-flare</code></li>
+<li><code>gpt-image-2.5-sunburst</code></li>
+</ul>
+</details>
+<h3 id="beginner-skill-mcp">H. Skill vs MCP vs 说明文件（对照）</h3>
+<p>三个东西经常被一起提到，但职责不同：</p>
+<figure class="shot">
+<img alt="说明文件、Skill、MCP 三职责对照" loading="lazy" src="/handbook/images/img-23-beginner-skill-mcp.png"/>
+<figcaption>说明文件管规矩 · Skill 管步骤 · MCP 管外设</figcaption>
+</figure>
+<div class="table-wrap">
+<table>
+<thead><tr><th>概念</th><th>干什么</th><th>Claude 常见位置</th><th>Codex 常见位置</th></tr></thead>
+<tbody>
+<tr><td><strong>Skill</strong></td><td>可复用流程（按需）</td><td><code>.claude/skills</code> 或 <code>~/.claude/skills</code></td><td><code>.agents/skills</code> 或 <code>~/.agents/skills</code></td></tr>
+<tr><td><strong>MCP</strong></td><td>外接工具协议（连 Issue、设计稿、库表等）</td><td>项目 <code>.mcp.json</code></td><td><code>config.toml</code> 里的 MCP 配置</td></tr>
+<tr><td><strong>总是生效的说明</strong></td><td>项目「宪法」</td><td><code>CLAUDE.md</code>、<code>.claude/rules</code></td><td><code>AGENTS.md</code>（及 override）</td></tr>
+<tr><td><strong>设置 / 密钥 / 沙箱</strong></td><td>行为开关与凭据</td><td><code>settings.json</code>（及 local 覆盖）</td><td><code>config.toml</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>记忆口诀：<strong>说明文件管「你是谁、项目规矩」；Skill 管「这套步骤怎么做」；MCP 管「能调用哪些外部工具」；settings/config 管「权限、地址、沙箱」。</strong></p>
+<h3 id="beginner-plugins">I. 插件市场（Claude 为主，Codex 一句）</h3>
+<p><strong>Claude Code：</strong>在会话中用 <code>/plugin</code> 浏览与管理。官方市场 <code>claude-plugins-official</code> 常会自动加入。安装示例形态：<code>/plugin install 名称@claude-plugins-official</code>（以你客户端实际提示为准）。</p>
+<div class="callout"><strong>信任警告：</strong>插件可能在本机以<strong>你的用户权限</strong>执行代码或访问文件。只安装你理解来源与用途的组件；不确定就先不装，先用官方 CLI + 本站直连跑通主流程。</div>
+<p><strong>Codex：</strong>同样支持通过插件/定制安装现成工作流；优先把 <code>AGENTS.md</code> 写清楚，再按需加 skill / MCP / 插件，避免一上来堆扩展。</p>
+<h3 id="beginner-path">J. 完全小白的学习路径</h3>
+<ol>
+<li><a href="#register">注册账号</a>并联系管理员开通额度。</li>
+<li><a href="#keys">新建密钥</a>：按你要跑的工具选对厂商与分组，立刻离线保存。</li>
+<li><a href="#download">安装 CC Switch</a>（v4），阅读 <a href="#ccswitch-notes">直连 / 路由 / 聚合</a>——先用<strong>直连</strong>。</li>
+<li>学会打开<strong>终端</strong>，用 <code>cd</code> 进入一个真实小项目（或空练习目录）。</li>
+<li>只配<strong>一个</strong>工具并跑通一次：Codex 见 <a href="#config-gpt">配置</a> + <a href="#use-gpt">各端使用</a>；Claude Code 见 <a href="#claude-code">Claude Code 章</a>。成功标准：能对话，或安全地改一个无关紧要的小文件。</li>
+<li>再学项目说明：Claude 写 <code>CLAUDE.md</code> / rules；Codex 写 <code>AGENTS.md</code>。</li>
+<li>最后才加 Skill、MCP、插件。卡住时查 <a href="#faq">十二、常见问题</a> 与 <a href="#errors">十三、错误处理</a>。</li>
+</ol>
+<figure class="shot">
+<img alt="完全小白学习路径：注册→密钥→CC Switch→终端→一个工具→项目说明→Skill/MCP" loading="lazy" src="/handbook/images/img-24-beginner-path.png"/>
+<figcaption>建议顺序：先跑通一个工具，再写项目说明，最后才加 Skill / MCP / 插件</figcaption>
+</figure>
+<p>若只要在其它聊天客户端里用 <strong>Grok 模型</strong>：建 <code>grok</code> 分组密钥，按 <a href="#grok">八、使用 Grok</a> 配置即可；要用终端里的 Grok Build，见 <a href="#grok-build">十一、Grok Build</a>。不必先装 Claude Code。</p>
+<h3 id="beginner-safety">K. 安全与习惯</h3>
+<ul>
+<li>密钥不要截图发群、不要写进公开仓库或手册示例；泄露后立刻在站内作废并换新。</li>
+<li>下载客户端过慢时可开系统代理，并尽量使用 <strong>TUN 模式</strong>。</li>
+<li>改 Codex 模型或供应商后<strong>重启 Codex</strong>；Claude Code 直连多数情况不用重启（以界面提示为准）。</li>
+<li>模型 ID 手打易错；优先从站内列表复制。</li>
+<li>不要对不明来源的仓库盲目信任项目级 <code>.codex/config.toml</code>、MCP 或插件。</li>
+<li>本站是中转：客户端版本、本机权限、代理与上游额度都会影响体验；排查时别只盯着密钥。</li>
+</ul>
+<p class="foot">DubDub 使用手册</p>

@@ -56,7 +56,21 @@ function mountHome(settings: Record<string, unknown> = {}) {
 }
 
 function compactDestination(wrapper: ReturnType<typeof mountHome>) {
-  return wrapper.get('[data-testid="compact-home"]').findComponent(RouterLinkStub).props('to')
+  return wrapper
+    .get('[data-testid="compact-home"]')
+    .findAllComponents(RouterLinkStub)
+    .find((link) => {
+      const to = link.props('to')
+      return to === '/login' || to === '/dashboard' || to === '/admin/dashboard'
+    })
+    ?.props('to')
+}
+
+function handbookDestination(wrapper: ReturnType<typeof mountHome>) {
+  return wrapper
+    .findAllComponents(RouterLinkStub)
+    .find((link) => link.props('to') === '/handbook')
+    ?.props('to')
 }
 
 function modelPlazaDestination(wrapper: ReturnType<typeof mountHome>) {
@@ -170,6 +184,11 @@ describe('HomeView compact mode', () => {
     })
 
     expect(modelPlazaDestination(wrapper)).toBe('/model-plaza')
+  })
+
+  it('always shows an in-site handbook link in compact and default homes', () => {
+    expect(handbookDestination(mountHome({ compact_home_enabled: true }))).toBe('/handbook')
+    expect(handbookDestination(mountHome())).toBe('/handbook')
   })
 
   it('hides the model plaza link when the feature is disabled', () => {

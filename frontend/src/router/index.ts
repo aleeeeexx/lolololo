@@ -185,6 +185,18 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'modelPlaza.title'
     }
   },
+  {
+    path: '/handbook',
+    name: 'Handbook',
+    alias: '/docs/handbook',
+    component: () => import('@/views/user/HandbookView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Handbook',
+      titleKey: 'handbook.title',
+      descriptionKey: 'handbook.description'
+    }
+  },
 
   // ==================== User Routes ====================
   {
