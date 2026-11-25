@@ -16,7 +16,9 @@ type supportedModelsLister interface {
 
 // SupportedModelsHandler serves GET /api/v1/supported-models for logged-in users.
 // The catalog is independent of model_plaza_enabled / available_channels_enabled
-// and never calls upstream or SyncUpstreamModelCatalog.
+// and uses the same advertised-group listing as GET /v1/models, including the
+// pinned OpenAI discovery path when a group has it enabled. It does not run
+// SyncUpstreamModelCatalog.
 type SupportedModelsHandler struct {
 	svc supportedModelsLister
 }

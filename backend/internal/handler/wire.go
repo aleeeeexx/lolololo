@@ -115,6 +115,7 @@ func ProvideGatewayHandler(
 	coordinator *securityaudit.Coordinator,
 	geminiCachedContentService *service.GeminiCachedContentService,
 ) *GatewayHandler {
+	service.AttachPinnedOpenAIModelsLister(gatewayService, openAIGatewayService)
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)

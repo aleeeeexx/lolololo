@@ -3099,6 +3099,13 @@ func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
 			catalog.GrokModelDiagnostics = h.accountTestService.GetGrokModelDiagnostics(c.Request.Context(), latest)
 		}
 	}
+	if account != nil {
+		if invalidator, ok := h.adminService.(interface {
+			InvalidateAvailableModelsCacheForAccount(*service.Account)
+		}); ok {
+			invalidator.InvalidateAvailableModelsCacheForAccount(account)
+		}
+	}
 
 	response.Success(c, catalog)
 }

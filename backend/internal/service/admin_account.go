@@ -343,6 +343,7 @@ func (s *adminServiceImpl) DuplicateAccount(ctx context.Context, id int64, actor
 	}
 	duplicate.AccountGroups = groups
 	duplicate.GroupIDs = groupIDs
+	s.invalidateAvailableModelsCacheForGroups(groupIDs...)
 	return duplicate, nil
 }
 
@@ -544,7 +545,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		if err := s.accountRepo.BindGroups(ctx, account.ID, groupIDs); err != nil {
 			return nil, err
 		}
+		account.GroupIDs = append([]int64(nil), groupIDs...)
 	}
+	s.invalidateAvailableModelsCacheForGroups(groupIDs...)
 
 	AfterAccountCommit(ctx, func(_ context.Context) {
 		// OAuth 账号：创建后异步设置隐私。
@@ -581,6 +584,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
+	previousGroupIDs := append([]int64(nil), account.GroupIDs...)
 	if account.Platform == PlatformTypeSafe && input.Type != "" && input.Type != AccountTypeAPIKey {
 		return nil, errors.New("typesafe accounts only support apikey credentials")
 	}
@@ -927,6 +931,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
+	s.invalidateAvailableModelsCacheForGroups(mergeUniquePositiveInt64s(previousGroupIDs, updated.GroupIDs)...)
 	return updated, nil
 }
 
@@ -1013,6 +1018,11 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 			return nil, err
 		}
 		cachedTargets = loaded
+	}
+	if len(cachedTargets) == 0 {
+		if loaded, loadErr := s.accountRepo.GetByIDs(ctx, input.AccountIDs); loadErr == nil {
+			cachedTargets = loaded
+		}
 	}
 	targetsByID := make(map[int64]*Account, len(cachedTargets))
 	for _, account := range cachedTargets {
@@ -1212,6 +1222,7 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		result.Results = append(result.Results, entry)
 	}
 
+	s.invalidateAvailableModelsCacheForGroups(bulkUpdateModelsCacheGroupIDs(input, cachedTargets)...)
 	return result, nil
 }
 
@@ -1295,7 +1306,12 @@ func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 	if err != nil {
 		return fmt.Errorf("list spark shadows for cascade delete: %w", err)
 	}
+	var invalidateGroupIDs []int64
+	if account, getErr := s.accountRepo.GetByID(ctx, id); getErr == nil {
+		invalidateGroupIDs = append(invalidateGroupIDs, accountGroupIDs(account)...)
+	}
 	for _, shadow := range shadows {
+		invalidateGroupIDs = append(invalidateGroupIDs, accountGroupIDs(shadow)...)
 		if err := s.accountRepo.Delete(ctx, shadow.ID); err != nil {
 			return fmt.Errorf("cascade delete spark shadow %d: %w", shadow.ID, err)
 		}
@@ -1303,6 +1319,7 @@ func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 	if err := s.accountRepo.Delete(ctx, id); err != nil {
 		return err
 	}
+	s.invalidateAvailableModelsCacheForGroups(invalidateGroupIDs...)
 	return nil
 }
 
@@ -1491,6 +1508,7 @@ func (s *adminServiceImpl) CreateShadow(ctx context.Context, parentID int64, opt
 		}
 		shadow.GroupIDs = groupIDs
 	}
+	s.invalidateAvailableModelsCacheForGroups(groupIDs...)
 
 	return shadow, nil
 }

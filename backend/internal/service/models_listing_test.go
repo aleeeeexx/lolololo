@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+var errPinnedListUnavailable = errors.New("pinned models unavailable")
 
 type listingAccountRepo struct {
 	AccountRepository
@@ -154,4 +158,107 @@ func TestListAdvertisedModelsForGroup_AntigravityAndOpenCodeGoMatchModelsFallbac
 	require.Equal(t, claudeIDs, advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), &Group{ID: 5, Platform: PlatformOpenCodeGo})))
 	require.NotEqual(t, DefaultModelIDsForPlatform(PlatformAntigravity), claudeIDs)
 	require.NotEqual(t, DefaultModelIDsForPlatform(PlatformOpenCodeGo), claudeIDs)
+}
+
+type pinnedOpenAIModelsListerStub struct {
+	ids    []string
+	err    error
+	calls  int
+	groups []*Group
+}
+
+func (s *pinnedOpenAIModelsListerStub) FetchPinnedOpenAIModelsList(_ context.Context, group *Group, _ int, _ string) (*OpenAIModelsResponse, *Account, error) {
+	s.calls++
+	s.groups = append(s.groups, group)
+	if s.err != nil {
+		return nil, nil, s.err
+	}
+	data := make([]map[string]string, 0, len(s.ids))
+	for _, id := range s.ids {
+		data = append(data, map[string]string{"id": id, "object": "model"})
+	}
+	body, err := json.Marshal(map[string]any{"object": "list", "data": data})
+	if err != nil {
+		return nil, nil, err
+	}
+	return &OpenAIModelsResponse{Body: body}, &Account{ID: 99}, nil
+}
+
+func pinnedOpenAIGroup(id int64, allowlist ...string) *Group {
+	group := &Group{
+		ID:       id,
+		Platform: PlatformOpenAI,
+		CodexModelsManifestConfig: GroupCodexModelsManifestConfig{
+			Enabled:    true,
+			AccountIDs: []int64{1},
+		},
+	}
+	if len(allowlist) > 0 {
+		group.ModelAllowlist = GroupModelAllowlist{Enabled: true, Models: allowlist}
+	}
+	return group
+}
+
+func TestListAdvertisedModelsForGroup_PinnedOpenAIUsesDiscoveryCatalog(t *testing.T) {
+	svc := testGateway(map[int64][]Account{
+		7: {mappedAccount(1, PlatformOpenAI, "local-only")},
+	})
+	lister := &pinnedOpenAIModelsListerStub{ids: []string{"gpt-5.4", "gpt-4.1"}}
+	AttachPinnedOpenAIModelsLister(svc, lister)
+
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), pinnedOpenAIGroup(7)))
+	require.Equal(t, []string{"gpt-5.4", "gpt-4.1"}, ids)
+	require.Equal(t, 1, lister.calls)
+	require.NotContains(t, ids, "local-only")
+}
+
+func TestListAdvertisedModelsForGroup_PinnedOpenAIFailureDoesNotFallBackToMappings(t *testing.T) {
+	svc := testGateway(map[int64][]Account{
+		7: {mappedAccount(1, PlatformOpenAI, "local-only")},
+	})
+	AttachPinnedOpenAIModelsLister(svc, &pinnedOpenAIModelsListerStub{err: errPinnedListUnavailable})
+
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), pinnedOpenAIGroup(7)))
+	require.Empty(t, ids)
+}
+
+func TestListAdvertisedModelsForGroup_PinnedOpenAIEmptyCatalogIsAuthoritative(t *testing.T) {
+	svc := testGateway(nil)
+	AttachPinnedOpenAIModelsLister(svc, &pinnedOpenAIModelsListerStub{ids: []string{}})
+
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), pinnedOpenAIGroup(8)))
+	require.Empty(t, ids)
+	require.NotEqual(t, DefaultModelIDsForPlatform(PlatformOpenAI), ids)
+}
+
+func TestListAdvertisedModelsForGroup_PinnedOpenAIWithoutListerDoesNotUseLocalMappings(t *testing.T) {
+	svc := testGateway(map[int64][]Account{
+		7: {mappedAccount(1, PlatformOpenAI, "local-only")},
+	})
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), pinnedOpenAIGroup(7)))
+	require.Empty(t, ids)
+}
+
+func TestListAdvertisedModelsForGroup_UnpinnedOpenAIStillUsesSavedMappings(t *testing.T) {
+	svc := testGateway(map[int64][]Account{
+		7: {mappedAccount(1, PlatformOpenAI, "gpt-4o", "o3-mini")},
+	})
+	AttachPinnedOpenAIModelsLister(svc, &pinnedOpenAIModelsListerStub{ids: []string{"should-not-appear"}})
+
+	group := &Group{ID: 7, Platform: PlatformOpenAI}
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), group))
+	require.Equal(t, []string{"gpt-4o", "o3-mini"}, ids)
+}
+
+func TestListAdvertisedModelsForGroup_PinnedOpenAITrustsListerAllowlist(t *testing.T) {
+	// FetchPinnedOpenAIModelsList already applies the group allowlist. Listing
+	// must not filter again against the local mapping catalog.
+	svc := testGateway(map[int64][]Account{
+		7: {mappedAccount(1, PlatformOpenAI, "local-only")},
+	})
+	lister := &pinnedOpenAIModelsListerStub{ids: []string{"upstream-allowed"}}
+	AttachPinnedOpenAIModelsLister(svc, lister)
+
+	ids := advertisedIDs(svc.ListAdvertisedModelsForGroup(context.Background(), pinnedOpenAIGroup(7, "local-only")))
+	require.Equal(t, []string{"upstream-allowed"}, ids)
 }

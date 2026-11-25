@@ -347,6 +347,33 @@ func (s *OpenAIGatewayService) FetchPinnedOpenAIModelsList(ctx context.Context, 
 	return openAIModelsResponseForClient(response, ifNoneMatch), results[0].account, nil
 }
 
+func openAIModelsListIDs(body []byte) ([]string, error) {
+	_, entries, err := modelCatalogEntries(body, "data")
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(entries))
+	seen := make(map[string]struct{}, len(entries))
+	for _, raw := range entries {
+		var model struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &model); err != nil {
+			return nil, err
+		}
+		id := strings.TrimSpace(model.ID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 func selectModelCatalogEntries(byID map[string]json.RawMessage, selected []string) []json.RawMessage {
 	models := make([]json.RawMessage, 0, len(selected))
 	seen := make(map[string]struct{}, len(selected))

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
@@ -11,6 +12,25 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
+
+// defaultPinnedOpenAIModelsAccountSwitches matches GatewayHandler's usual
+// fallback depth when a pinned OpenAI models-list fetch falls back to the scheduler.
+const defaultPinnedOpenAIModelsAccountSwitches = 3
+
+// pinnedOpenAIModelsLister fetches the same OpenAI catalog GET /v1/models uses
+// when a group has pinned model-list accounts enabled.
+type pinnedOpenAIModelsLister interface {
+	FetchPinnedOpenAIModelsList(ctx context.Context, group *Group, maxAccountSwitches int, ifNoneMatch string) (*OpenAIModelsResponse, *Account, error)
+}
+
+// AttachPinnedOpenAIModelsLister wires OpenAI pinned model-list discovery onto
+// GatewayService so playground and supported-models listings match GET /v1/models.
+func AttachPinnedOpenAIModelsLister(gateway *GatewayService, lister pinnedOpenAIModelsLister) {
+	if gateway == nil {
+		return
+	}
+	gateway.pinnedOpenAIModelsLister = lister
+}
 
 // AdvertisedModel is a request-side model ID plus the platform(s) it was
 // advertised from. It never includes account IDs, credentials, or group
@@ -218,12 +238,14 @@ func (s *GatewayService) compositeAdvertisedModels(ctx context.Context, groupID 
 }
 
 // ListAdvertisedModelsForGroup returns the request-side model IDs that
-// GET /v1/models would advertise for an API key bound to this group, using
-// already-saved configuration only.
+// GET /v1/models would advertise for an API key bound to this group.
 //
-// It does not call upstream APIs, does not run SyncUpstreamModelCatalog, and
-// does not follow the live pinned Codex / OpenAI models-list discovery path
-// (that path would contact upstream accounts).
+// When the group is OpenAI and has 固定账号获取模型列表 enabled, this follows
+// the same pinned discovery path as GatewayHandler.Models / pinnedOpenAIModels
+// (including account mapping projection, allowlist filtering, and optional
+// scheduler fallback). That path may contact the pinned upstream accounts.
+// Otherwise it uses already-saved configuration only and does not call
+// SyncUpstreamModelCatalog.
 //
 // Fallback rules match /v1/models:
 //   - no schedulable accounts / no mappings → the un-allowlisted /v1/models
@@ -243,6 +265,10 @@ func (s *GatewayService) ListAdvertisedModelsForGroup(ctx context.Context, group
 	}
 	groupID := &group.ID
 	platform := strings.TrimSpace(group.Platform)
+
+	if usesPinnedOpenAIModelsList(group) {
+		return s.listPinnedOpenAIAdvertisedModels(ctx, group)
+	}
 
 	if platform == PlatformComposite {
 		available := s.compositeAdvertisedModels(ctx, groupID, "", true)
@@ -326,4 +352,35 @@ func filterAdvertisedModels(models []AdvertisedModel, allowed []string) []Advert
 		out = append(out, AdvertisedModel{Name: id, Platforms: []string{PlatformComposite}})
 	}
 	return out
+}
+
+func usesPinnedOpenAIModelsList(group *Group) bool {
+	return group != nil && strings.TrimSpace(group.Platform) == PlatformOpenAI && group.CodexModelsManifestConfig.Enabled
+}
+
+// listPinnedOpenAIAdvertisedModels returns the IDs from FetchPinnedOpenAIModelsList,
+// which already applies account mappings and the group allowlist. A fetch or
+// parse failure returns an empty catalog rather than the local mapping fallback,
+// matching GET /v1/models which surfaces an upstream error instead of a stale
+// saved list.
+func (s *GatewayService) listPinnedOpenAIAdvertisedModels(ctx context.Context, group *Group) []AdvertisedModel {
+	if s == nil || group == nil || s.pinnedOpenAIModelsLister == nil {
+		return nil
+	}
+	response, _, err := s.pinnedOpenAIModelsLister.FetchPinnedOpenAIModelsList(
+		ctx,
+		group,
+		defaultPinnedOpenAIModelsAccountSwitches,
+		"",
+	)
+	if err != nil || response == nil {
+		slog.Warn("pinned_openai_models_list_failed", "group_id", group.ID, "error", err)
+		return nil
+	}
+	ids, err := openAIModelsListIDs(response.Body)
+	if err != nil {
+		slog.Warn("pinned_openai_models_list_invalid", "group_id", group.ID, "error", err)
+		return nil
+	}
+	return withPlatforms(ids, PlatformOpenAI)
 }

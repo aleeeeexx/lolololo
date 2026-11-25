@@ -753,6 +753,63 @@ func (s *adminServiceImpl) invalidateAvailableModelsCache(groupID int64) {
 	s.modelsCacheInvalidator.InvalidateAvailableModelsCache(&id, "")
 }
 
+func accountGroupIDs(account *Account) []int64 {
+	if account == nil {
+		return nil
+	}
+	return uniquePositiveInt64s(account.GroupIDs)
+}
+
+func uniquePositiveInt64s(ids []int64) []int64 {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	out := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+func mergeUniquePositiveInt64s(sets ...[]int64) []int64 {
+	var merged []int64
+	for _, set := range sets {
+		merged = append(merged, set...)
+	}
+	return uniquePositiveInt64s(merged)
+}
+
+func (s *adminServiceImpl) invalidateAvailableModelsCacheForGroups(groupIDs ...int64) {
+	for _, id := range uniquePositiveInt64s(groupIDs) {
+		s.invalidateAvailableModelsCache(id)
+	}
+}
+
+// InvalidateAvailableModelsCacheForAccount clears the advertised-models cache
+// for every group bound to the account.
+func (s *adminServiceImpl) InvalidateAvailableModelsCacheForAccount(account *Account) {
+	s.invalidateAvailableModelsCacheForGroups(accountGroupIDs(account)...)
+}
+
+func bulkUpdateModelsCacheGroupIDs(input *BulkUpdateAccountsInput, accounts []*Account) []int64 {
+	var groups []int64
+	for _, account := range accounts {
+		groups = append(groups, accountGroupIDs(account)...)
+	}
+	if input != nil && input.GroupIDs != nil {
+		groups = append(groups, *input.GroupIDs...)
+	}
+	return uniquePositiveInt64s(groups)
+}
+
 // ChannelCacheInvalidator 失效渠道缓存。
 // 窄接口，避免 admin 服务依赖整个 ChannelService——与 APIKeyAuthCacheInvalidator 同一思路。
 type ChannelCacheInvalidator interface {
