@@ -92,20 +92,28 @@ describe('AppSidebar MCP entry', () => {
 })
 
 describe('AppSidebar supported models entry', () => {
-  it('places Supported Models first in the shared user navigation, including the admin personal section', () => {
+  it('places Playground first and Supported Models second in the shared user navigation, including the admin personal section', () => {
+    expect(componentSource).toContain("const PlaygroundIcon = {")
     expect(componentSource).toContain("const ModelsIcon = {")
+    expect(componentSource).toContain("path: '/use'")
+    expect(componentSource).toContain("label: t('nav.playground')")
     expect(componentSource).toContain("path: '/supported-models'")
     expect(componentSource).toContain("label: t('nav.supportedModels')")
     const selfNavStart = componentSource.indexOf('function buildSelfNavItems')
     const dashboardPush = componentSource.indexOf("path: '/dashboard'", selfNavStart)
+    const usePush = componentSource.indexOf("path: '/use'", selfNavStart)
     const modelsPush = componentSource.indexOf("path: '/supported-models'", selfNavStart)
     const adminNav = componentSource.indexOf('const adminNavItems')
     expect(selfNavStart).toBeGreaterThan(0)
-    expect(modelsPush).toBeGreaterThan(selfNavStart)
+    expect(usePush).toBeGreaterThan(selfNavStart)
+    expect(modelsPush).toBeGreaterThan(usePush)
     expect(dashboardPush).toBeGreaterThan(modelsPush)
     expect(componentSource.slice(adminNav)).not.toContain("path: '/supported-models'")
+    expect(componentSource.slice(adminNav)).not.toContain("path: '/use'")
     expect(componentSource).not.toMatch(/path: '\/supported-models'[^\n]*featureFlag/)
     expect(componentSource).not.toMatch(/path: '\/supported-models'[^\n]*hideInSimpleMode/)
+    expect(componentSource).not.toMatch(/path: '\/use'[^\n]*featureFlag/)
+    expect(componentSource).not.toMatch(/path: '\/use'[^\n]*hideInSimpleMode/)
   })
 })
 

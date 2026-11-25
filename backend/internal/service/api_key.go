@@ -142,4 +142,8 @@ type APIKeyListFilters struct {
 	Search  string
 	Status  string
 	GroupID *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	// ExcludePlaygroundKeys hides server-managed 使用-page keys from user-facing lists.
+	ExcludePlaygroundKeys bool
+	// IncludePlaygroundKeys is used by internal playground session setup.
+	IncludePlaygroundKeys bool
 }

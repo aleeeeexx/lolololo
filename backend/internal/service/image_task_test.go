@@ -89,3 +89,18 @@ func TestImageTaskServiceMapsStoreFailures(t *testing.T) {
 	_, err := svc.Create(context.Background(), ImageTaskOwner{UserID: 1, APIKeyID: 2})
 	require.ErrorIs(t, err, ErrImageTaskUnavailable)
 }
+
+func TestImageTaskServiceGetForUserIsolatesByUserID(t *testing.T) {
+	store := &imageTaskMemoryStore{}
+	svc := NewImageTaskServiceWithOptions(store, time.Hour, time.Minute)
+	created, err := svc.Create(context.Background(), ImageTaskOwner{UserID: 7, APIKeyID: 9})
+	require.NoError(t, err)
+
+	_, err = svc.GetForUser(context.Background(), 8, created.ID)
+	require.ErrorIs(t, err, ErrImageTaskNotFound)
+
+	got, err := svc.GetForUser(context.Background(), 7, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.ID, got.ID)
+	require.Equal(t, ImageTaskStatusProcessing, got.Status)
+}

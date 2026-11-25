@@ -455,6 +455,9 @@ func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service
 			q = q.Where(apikey.GroupIDEQ(*filters.GroupID))
 		}
 	}
+	if filters.ExcludePlaygroundKeys && !filters.IncludePlaygroundKeys {
+		q = q.Where(apikey.Not(apikey.NameHasPrefix(service.PlaygroundAPIKeyNamePrefix)))
+	}
 
 	return q
 }

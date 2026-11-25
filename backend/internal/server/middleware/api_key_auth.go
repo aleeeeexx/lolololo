@@ -388,6 +388,29 @@ func GetSubscriptionFromContext(c *gin.Context) (*service.UserSubscription, bool
 	return subscription, ok
 }
 
+// SetGatewayAuthContext writes the same gin/request context that API key
+// authentication sets after a key has been authorized. JWT playground handlers
+// use this to enter the existing gateway and billing path without presenting
+// an API key to the browser.
+func SetGatewayAuthContext(c *gin.Context, apiKey *service.APIKey, subscription *service.UserSubscription) {
+	if c == nil || apiKey == nil || apiKey.User == nil {
+		return
+	}
+	ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
+	c.Request = c.Request.WithContext(ctx)
+	if subscription != nil {
+		c.Set(string(ContextKeySubscription), subscription)
+	}
+	c.Set(string(ContextKeyAPIKey), apiKey)
+	c.Set(string(ContextKeyUser), AuthSubject{
+		UserID:      apiKey.User.ID,
+		Concurrency: apiKey.User.Concurrency,
+	})
+	c.Set(string(ContextKeyUserRole), apiKey.User.Role)
+	setGroupContext(c, apiKey.Group)
+	SetOpsFallbackAPIKey(c, apiKey)
+}
+
 func setGroupContext(c *gin.Context, group *service.Group) {
 	if !service.IsGroupContextValid(group) {
 		return

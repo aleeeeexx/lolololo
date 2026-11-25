@@ -181,6 +181,7 @@ export default {
     availableChannels: '可用渠道',
     modelPlaza: '模型广场',
     supportedModels: '支持的模型',
+    playground: '使用',
     subscriptions: '订阅管理',
     accounts: '账号管理',
     plugins: '插件管理',

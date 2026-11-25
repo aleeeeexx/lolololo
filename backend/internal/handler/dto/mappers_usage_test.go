@@ -332,3 +332,30 @@ func TestUsageLogFromService_PreservesHistoricalMissingImageSize(t *testing.T) {
 func f64Ptr(value float64) *float64 {
 	return &value
 }
+
+func TestUsageLogFromService_RedactsPlaygroundAPIKeyForUsers(t *testing.T) {
+	groupID := int64(5)
+	log := &service.UsageLog{
+		ID:       9,
+		UserID:   7,
+		APIKeyID: 22,
+		APIKey: &service.APIKey{
+			ID:      22,
+			UserID:  7,
+			Key:     "sk-secret-playground",
+			Name:    service.PlaygroundAPIKeyName(5),
+			GroupID: &groupID,
+		},
+	}
+
+	userDTO := UsageLogFromService(log)
+	require.NotNil(t, userDTO.APIKey)
+	require.Equal(t, int64(22), userDTO.APIKey.ID)
+	require.Empty(t, userDTO.APIKey.Key)
+	require.Equal(t, "playground", userDTO.APIKey.Name)
+
+	adminDTO := UsageLogFromServiceAdmin(log)
+	require.NotNil(t, adminDTO.APIKey)
+	require.Equal(t, "sk-secret-playground", adminDTO.APIKey.Key)
+	require.Equal(t, "playground: "+service.PlaygroundAPIKeyName(5), adminDTO.APIKey.Name)
+}

@@ -745,10 +745,23 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		BillingMode:               l.BillingMode,
 		CreatedAt:                 l.CreatedAt,
 		User:                      UserFromServiceShallow(l.User),
-		APIKey:                    APIKeyFromService(l.APIKey),
+		APIKey:                    userFacingUsageAPIKey(l.APIKey),
 		Group:                     GroupFromServiceShallow(l.Group),
 		Subscription:              UserSubscriptionFromService(l.Subscription),
 	}
+}
+
+func userFacingUsageAPIKey(k *service.APIKey) *APIKey {
+	if k == nil {
+		return nil
+	}
+	if service.IsPlaygroundAPIKeyName(k.Name) {
+		out := APIKeyFromService(k)
+		out.Key = ""
+		out.Name = "playground"
+		return out
+	}
+	return APIKeyFromService(k)
 }
 
 // UsageLogFromService converts a service UsageLog to DTO for regular users.
@@ -769,6 +782,13 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 	}
 	usageLog := usageLogFromServiceUser(l)
 	usageLog.UpstreamEndpoint = l.UpstreamEndpoint
+	if l.APIKey != nil {
+		usageLog.APIKey = APIKeyFromService(l.APIKey)
+		if service.IsPlaygroundAPIKeyName(l.APIKey.Name) && usageLog.APIKey != nil {
+			// Admin can still see the system key, but label it clearly.
+			usageLog.APIKey.Name = "playground: " + l.APIKey.Name
+		}
+	}
 	return &AdminUsageLog{
 		UsageLog:                usageLog,
 		UpstreamModel:           l.UpstreamModel,

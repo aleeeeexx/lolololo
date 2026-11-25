@@ -85,13 +85,8 @@ func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) 
 			response.InternalError(c, "API key service not available")
 			return nil, false
 		}
-		apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), id)
-		if err != nil {
+		if _, err := h.apiKeyService.GetByIDForUser(c.Request.Context(), id, subject.UserID); err != nil {
 			response.ErrorFrom(c, err)
-			return nil, false
-		}
-		if apiKey.UserID != subject.UserID {
-			response.Forbidden(c, "Not authorized to access this API key's usage records")
 			return nil, false
 		}
 		apiKeyID = id
@@ -700,13 +695,8 @@ func (h *UsageHandler) GetMyAPIKeyDailyUsage(c *gin.Context) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), apiKeyID)
-	if err != nil {
+	if _, err := h.apiKeyService.GetByIDForUser(c.Request.Context(), apiKeyID, subject.UserID); err != nil {
 		response.ErrorFrom(c, err)
-		return
-	}
-	if apiKey.UserID != subject.UserID {
-		response.Forbidden(c, "Not authorized to access this API key's usage")
 		return
 	}
 

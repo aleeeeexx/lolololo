@@ -85,6 +85,15 @@ func (s *apiKeyRepoStub) GetByKeyForAuth(ctx context.Context, key string) (*APIK
 func (s *apiKeyRepoStub) Update(ctx context.Context, key *APIKey, _ APIKeyUpdateFields) error {
 	if key != nil {
 		s.updatedKeys = append(s.updatedKeys, *key)
+		if s.apiKey != nil && s.apiKey.ID == key.ID {
+			clone := *key
+			s.apiKey = &clone
+		}
+		for i := range s.listAllByUserIDKeys {
+			if s.listAllByUserIDKeys[i].ID == key.ID {
+				s.listAllByUserIDKeys[i] = *key
+			}
+		}
 	}
 	return s.updateErr
 }
@@ -114,7 +123,7 @@ func (s *apiKeyRepoStub) ListByUserID(ctx context.Context, userID int64, params 
 	if s.listByUserIDErr != nil {
 		return nil, nil, s.listByUserIDErr
 	}
-	keys := append([]APIKey(nil), s.listByUserIDKeys...)
+	keys := filterAPIKeyStubKeys(userID, s.listByUserIDKeys, filters)
 	return keys, &pagination.PaginationResult{
 		Total:    int64(len(keys)),
 		Page:     params.Page,
@@ -162,6 +171,9 @@ func filterAPIKeyStubKeys(userID int64, keys []APIKey, filters APIKeyListFilters
 			} else if key.GroupID == nil || *key.GroupID != *filters.GroupID {
 				continue
 			}
+		}
+		if filters.ExcludePlaygroundKeys && !filters.IncludePlaygroundKeys && IsPlaygroundAPIKeyName(key.Name) {
+			continue
 		}
 		result = append(result, key)
 	}

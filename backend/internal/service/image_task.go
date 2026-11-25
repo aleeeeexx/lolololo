@@ -187,6 +187,29 @@ func (s *ImageTaskService) Get(ctx context.Context, owner ImageTaskOwner, id str
 	return imageTaskToPublic(task), nil
 }
 
+// GetForUser returns a task if it belongs to userID, regardless of which of
+// the user's API keys created it. A task owned by another user is indistinguishable
+// from a missing task.
+func (s *ImageTaskService) GetForUser(ctx context.Context, userID int64, id string) (*ImageTask, error) {
+	if s == nil || s.store == nil {
+		return nil, ErrImageTaskUnavailable
+	}
+	if userID <= 0 {
+		return nil, ErrImageTaskNotFound
+	}
+	task, err := s.store.Get(ctx, strings.TrimSpace(id))
+	if err != nil {
+		if errors.Is(err, ErrImageTaskNotFound) {
+			return nil, ErrImageTaskNotFound
+		}
+		return nil, ErrImageTaskUnavailable.WithCause(err)
+	}
+	if task.UserID != userID {
+		return nil, ErrImageTaskNotFound
+	}
+	return imageTaskToPublic(task), nil
+}
+
 func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode int, result json.RawMessage) error {
 	if !json.Valid(result) {
 		return s.Fail(ctx, id, http.StatusBadGateway, imageTaskErrorJSON("api_error", "upstream returned a non-JSON image response"))

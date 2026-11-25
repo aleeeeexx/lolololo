@@ -496,6 +496,9 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	if err := validateCreateAPIKeyRequest(req); err != nil {
 		return nil, err
 	}
+	if err := rejectReservedPlaygroundKeyName(req.Name); err != nil {
+		return nil, err
+	}
 	// 验证用户存在
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -600,8 +603,28 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	return apiKey, nil
 }
 
+// userFacingAPIKeyListFilters forces server-managed playground keys out of
+// user-facing key lists, even if a caller set IncludePlaygroundKeys.
+func userFacingAPIKeyListFilters(filters APIKeyListFilters) APIKeyListFilters {
+	filters.IncludePlaygroundKeys = false
+	filters.ExcludePlaygroundKeys = true
+	return filters
+}
+
+func excludePlaygroundAPIKeys(keys []APIKey) []APIKey {
+	out := make([]APIKey, 0, len(keys))
+	for i := range keys {
+		if IsPlaygroundAPIKeyName(keys[i].Name) {
+			continue
+		}
+		out = append(out, keys[i])
+	}
+	return out
+}
+
 // List 获取用户的API Key列表
 func (s *APIKeyService) List(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
+	filters = userFacingAPIKeyListFilters(filters)
 	if normalizedAPIKeySortBy(params.SortBy) == apiKeySortCurrentConcurrency {
 		return s.listByCurrentConcurrency(ctx, userID, params, filters)
 	}
@@ -611,7 +634,7 @@ func (s *APIKeyService) List(ctx context.Context, userID int64, params paginatio
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
 	}
 	s.fillCurrentConcurrency(ctx, keys)
-	return keys, pagination, nil
+	return excludePlaygroundAPIKeys(keys), pagination, nil
 }
 
 func (s *APIKeyService) listByCurrentConcurrency(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error) {
@@ -624,6 +647,7 @@ func (s *APIKeyService) listByCurrentConcurrency(ctx context.Context, userID int
 	if err != nil {
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
 	}
+	keys = excludePlaygroundAPIKeys(keys)
 	s.fillCurrentConcurrency(ctx, keys)
 	sortAPIKeysByCurrentConcurrency(keys, params.NormalizedSortOrder(pagination.SortOrderDesc))
 	return paginateAPIKeys(keys, params), apiKeyPaginationResult(int64(len(keys)), params), nil
@@ -734,6 +758,24 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	return apiKey, nil
 }
 
+// GetByIDForUser returns a user-owned API key that is visible on user APIs.
+// Server-managed playground keys are treated as missing so their plaintext
+// credential cannot be read through GET /api/v1/api-keys/:id.
+func (s *APIKeyService) GetByIDForUser(ctx context.Context, id, userID int64) (*APIKey, error) {
+	apiKey, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if hidePlaygroundAPIKeyFromUser(apiKey, userID) {
+		return nil, ErrAPIKeyNotFound
+	}
+	return apiKey, nil
+}
+
+func hidePlaygroundAPIKeyFromUser(apiKey *APIKey, userID int64) bool {
+	return apiKey == nil || apiKey.UserID != userID || IsPlaygroundAPIKeyName(apiKey.Name)
+}
+
 // GetByKey 根据Key字符串获取API Key（用于认证）
 func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, error) {
 	// 非 UTF-8 的 key 不可能存在（生成和自定义的 key 都是 ASCII），且 Postgres 会以
@@ -801,6 +843,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
 
+	// Server-managed playground keys are immutable on user APIs.
+	if IsPlaygroundAPIKeyName(apiKey.Name) {
+		return nil, ErrAPIKeyNotFound
+	}
+
 	// 验证所有权
 	if apiKey.UserID != userID {
 		return nil, ErrInsufficientPerms
@@ -829,6 +876,9 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 
 	// 更新字段
 	if req.Name != nil {
+		if err := rejectReservedPlaygroundKeyName(*req.Name); err != nil {
+			return nil, err
+		}
 		apiKey.Name = html.EscapeString(*req.Name)
 		fields.Name = true
 	}
@@ -947,15 +997,19 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 
 // Delete 删除API Key
 func (s *APIKeyService) Delete(ctx context.Context, id int64, userID int64) error {
-	key, ownerID, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, id)
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get api key: %w", err)
 	}
+	if IsPlaygroundAPIKeyName(apiKey.Name) {
+		return ErrAPIKeyNotFound
+	}
 
 	// 验证当前用户是否为该 API Key 的所有者
-	if ownerID != userID {
+	if apiKey.UserID != userID {
 		return ErrInsufficientPerms
 	}
+	key := apiKey.Key
 
 	// 事务内:写审计 + 软删除(tombstone)。
 	if err := s.apiKeyRepo.DeleteWithAudit(ctx, id); err != nil {

@@ -70,6 +70,7 @@ type Handlers struct {
 	SupportedModels  *SupportedModelsHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
+	Playground       *PlaygroundHandler
 }
 
 // BuildInfo contains build-time information
