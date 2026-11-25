@@ -461,6 +461,8 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 详细部署步骤见：`deploy/DATAMANAGEMENTD_CN.md`
 
+生产站以后若要换非 `.cn` 对外域名（当前仍使用 `api.dubdub-ai.cn`，暂缓执行），按步骤见：`deploy/NON_CN_DOMAIN_CUTOVER_CN.md`
+
 #### 访问
 
 在浏览器中打开 `http://你的服务器IP:8080`
