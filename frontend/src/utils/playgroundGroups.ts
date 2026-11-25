@@ -2,24 +2,6 @@ import type { PlaygroundGroup } from '@/api/playground'
 
 export type PlaygroundTab = 'chat' | 'image'
 
-export function groupsForPlaygroundModel(
-  groups: PlaygroundGroup[] | undefined,
-  model: string,
-  kind: PlaygroundTab
-): PlaygroundGroup[] {
-  const list = groups ?? []
-  const want = model.trim()
-  return list.filter((group) => {
-    if (kind === 'image' && !group.supports_image) {
-      return false
-    }
-    if (want && group.models?.length && !group.models.includes(want)) {
-      return false
-    }
-    return true
-  })
-}
-
 export function pickDefaultPlaygroundGroup(groups: PlaygroundGroup[]): PlaygroundGroup | undefined {
   if (groups.length === 0) return undefined
   return [...groups].sort((a, b) => {
@@ -29,6 +11,64 @@ export function pickDefaultPlaygroundGroup(groups: PlaygroundGroup[]): Playgroun
     if (a.rate_multiplier !== b.rate_multiplier) return a.rate_multiplier - b.rate_multiplier
     return a.id - b.id
   })[0]
+}
+
+export function inferPlaygroundModelKinds(name: string): string[] {
+  let bare = name.trim().toLowerCase()
+  if (bare.startsWith('models/')) bare = bare.slice('models/'.length)
+  const slash = bare.lastIndexOf('/')
+  if (slash >= 0) {
+    bare = bare.slice(slash + 1).trim()
+    if (bare.startsWith('models/')) bare = bare.slice('models/'.length)
+  }
+  const image =
+    bare.startsWith('gpt-image-') ||
+    bare === 'gpt-image' ||
+    bare === 'dall-e' ||
+    bare.startsWith('dall-e-') ||
+    bare === 'grok-imagine' ||
+    bare === 'grok-imagine-edit' ||
+    bare.startsWith('grok-imagine-image') ||
+    (bare.startsWith('gemini-') && (bare.endsWith('-image') || bare.includes('-image-'))) ||
+    bare.startsWith('imagen') ||
+    bare.startsWith('imagegeneration')
+  const video =
+    bare.startsWith('sora') ||
+    bare.startsWith('veo') ||
+    bare.startsWith('grok-video') ||
+    bare.startsWith('grok-imagine-video')
+  if (!image && !video) return ['text']
+  const kinds: string[] = []
+  if (image) kinds.push('image')
+  if (video) kinds.push('video')
+  return kinds
+}
+
+export function playgroundModelKinds(group: PlaygroundGroup | undefined, name: string): string[] {
+  const listed = group?.model_kinds?.[name]
+  if (listed && listed.length) return listed
+  return inferPlaygroundModelKinds(name)
+}
+
+export function modelsForPlaygroundGroup(
+  group: PlaygroundGroup | undefined,
+  kind: PlaygroundTab
+): string[] {
+  const names = group?.models ?? []
+  if (kind === 'image') {
+    if (!group?.supports_image) return []
+    return names.filter((name) => playgroundModelKinds(group, name).includes('image'))
+  }
+  return names.filter((name) => {
+    const kinds = playgroundModelKinds(group, name)
+    return kinds.includes('text') && !kinds.includes('image') && !kinds.includes('video')
+  })
+}
+
+export function retainOrPickPlaygroundModel(models: string[], current: string): string {
+  const want = current.trim()
+  if (want && models.includes(want)) return want
+  return models[0] ?? ''
 }
 
 export function appendPlaygroundAttachmentText(

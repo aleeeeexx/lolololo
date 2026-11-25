@@ -51,9 +51,16 @@ func PlaygroundAPIKeyName(groupID int64) string {
 
 // PlaygroundService prepares a JWT user's request to enter the existing
 // gateway and billing path without the browser presenting an API key.
+// personalBoundGroupLister returns group IDs that appear on the user's
+// enabled personal API keys. Hidden playground system keys are excluded.
+type personalBoundGroupLister interface {
+	ListActivePersonalBoundGroupIDs(ctx context.Context, userID int64) (map[int64]struct{}, error)
+}
+
 type PlaygroundService struct {
 	keys          *APIKeyService
 	groups        userGroupLister
+	boundGroups   personalBoundGroupLister
 	listing       groupModelAdvertiser
 	subscriptions *SubscriptionService
 	users         *UserService
@@ -72,9 +79,11 @@ func NewPlaygroundService(
 	cfg *config.Config,
 ) *PlaygroundService {
 	var groups userGroupLister
+	var boundGroups personalBoundGroupLister
 	var listing groupModelAdvertiser
 	if keys != nil {
 		groups = keys
+		boundGroups = keys
 	}
 	if gateway != nil {
 		listing = gateway
@@ -82,6 +91,7 @@ func NewPlaygroundService(
 	return &PlaygroundService{
 		keys:          keys,
 		groups:        groups,
+		boundGroups:   boundGroups,
 		listing:       listing,
 		subscriptions: subscriptions,
 		users:         users,
@@ -102,17 +112,20 @@ type PlaygroundSession struct {
 	Limits           PlaygroundDocumentLimits `json:"limits"`
 }
 
-// PlaygroundGroup is a bindable group the 使用 page can charge against.
+// PlaygroundGroup is a group already bound on the user's personal API keys
+// and still available to that user. The 使用 page charges the hidden
+// playground system key for the selected group, not the personal key.
 type PlaygroundGroup struct {
-	ID                   int64    `json:"id"`
-	Name                 string   `json:"name"`
-	Platform             string   `json:"platform"`
-	RateMultiplier       float64  `json:"rate_multiplier"`
-	SubscriptionType     bool     `json:"subscription_type"`
-	AllowImageGeneration bool     `json:"allow_image_generation"`
-	SupportsImage        bool     `json:"supports_image"`
-	HasRemainingQuota    bool     `json:"has_remaining_quota"`
-	Models               []string `json:"models"`
+	ID                   int64               `json:"id"`
+	Name                 string              `json:"name"`
+	Platform             string              `json:"platform"`
+	RateMultiplier       float64             `json:"rate_multiplier"`
+	SubscriptionType     bool                `json:"subscription_type"`
+	AllowImageGeneration bool                `json:"allow_image_generation"`
+	SupportsImage        bool                `json:"supports_image"`
+	HasRemainingQuota    bool                `json:"has_remaining_quota"`
+	Models               []string            `json:"models"`
+	ModelKinds           map[string][]string `json:"model_kinds"`
 }
 
 type PlaygroundSubscription struct {
@@ -323,49 +336,53 @@ func usageFiltersForPlaygroundCost(userID int64, requestID string) usagestats.Us
 }
 
 func (s *PlaygroundService) resolveGroup(ctx context.Context, userID int64, model, kind string, groupID *int64) (*Group, error) {
-	groups, err := s.groups.GetAvailableGroups(ctx, userID)
+	if groupID == nil || *groupID <= 0 {
+		return nil, playgroundError(400, "GROUP_REQUIRED", "group_id is required")
+	}
+	groups, err := s.authorizedBoundGroups(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("list available groups: %w", err)
+		return nil, err
 	}
 	if len(groups) == 0 {
 		return nil, playgroundError(403, "NO_AVAILABLE_GROUP", "No available group for this account")
 	}
-	if groupID != nil && *groupID > 0 {
-		for i := range groups {
-			if groups[i].ID == *groupID {
-				if !groupAdvertisesModel(s.listing, ctx, &groups[i], model) {
-					return nil, playgroundError(403, "MODEL_NOT_ALLOWED", "This model is not available in the selected group")
-				}
-				if kind == SupportedModelKindImage && !groupSupportsPlaygroundImage(&groups[i]) {
-					return nil, playgroundError(404, "IMAGES_NOT_SUPPORTED", "Images API is not supported for this group")
-				}
-				g := groups[i]
-				return &g, nil
-			}
-		}
-		return nil, playgroundError(403, "GROUP_NOT_ALLOWED", "The selected group is not available")
-	}
-	var candidates []Group
 	for i := range groups {
-		if !groupAdvertisesModel(s.listing, ctx, &groups[i], model) {
+		if groups[i].ID != *groupID {
 			continue
+		}
+		if !groupAdvertisesModel(s.listing, ctx, &groups[i], model) {
+			return nil, playgroundError(403, "MODEL_NOT_ALLOWED", "This model is not available in the selected group")
 		}
 		if kind == SupportedModelKindImage && !groupSupportsPlaygroundImage(&groups[i]) {
-			continue
+			return nil, playgroundError(404, "IMAGES_NOT_SUPPORTED", "Images API is not supported for this group")
 		}
-		candidates = append(candidates, groups[i])
+		g := groups[i]
+		return &g, nil
 	}
-	if len(candidates) == 0 {
-		if kind == SupportedModelKindImage {
-			return nil, playgroundError(404, "IMAGES_NOT_SUPPORTED", "No available group supports this image model")
+	return nil, playgroundError(403, "GROUP_NOT_ALLOWED", "The selected group is not available")
+}
+
+// authorizedBoundGroups returns available groups that are also bound on the
+// user's enabled personal API keys. Hidden playground keys are not counted.
+func (s *PlaygroundService) authorizedBoundGroups(ctx context.Context, userID int64) ([]Group, error) {
+	if s == nil || s.groups == nil || s.boundGroups == nil {
+		return []Group{}, nil
+	}
+	available, err := s.groups.GetAvailableGroups(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list available groups: %w", err)
+	}
+	bound, err := s.boundGroups.ListActivePersonalBoundGroupIDs(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list personal key groups: %w", err)
+	}
+	out := make([]Group, 0, len(available))
+	for i := range available {
+		if _, ok := bound[available[i].ID]; ok {
+			out = append(out, available[i])
 		}
-		return nil, playgroundError(403, "MODEL_NOT_ALLOWED", "This model is not available for your account")
 	}
-	if len(candidates) > 1 {
-		return nil, playgroundError(400, "GROUP_REQUIRED", "group_id is required when multiple groups can serve this model")
-	}
-	g := candidates[0]
-	return &g, nil
+	return out, nil
 }
 
 func groupAdvertisesModel(listing groupModelAdvertiser, ctx context.Context, group *Group, model string) bool {
@@ -490,12 +507,9 @@ func (s *PlaygroundService) loadSubscription(ctx context.Context, apiKey *APIKey
 }
 
 func (s *PlaygroundService) listPlaygroundGroups(ctx context.Context, userID int64, subs []PlaygroundSubscription) ([]PlaygroundGroup, error) {
-	if s == nil || s.groups == nil {
-		return []PlaygroundGroup{}, nil
-	}
-	groups, err := s.groups.GetAvailableGroups(ctx, userID)
+	groups, err := s.authorizedBoundGroups(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("list available groups: %w", err)
+		return nil, err
 	}
 	rates := map[int64]float64{}
 	if s.keys != nil {
@@ -519,6 +533,7 @@ func (s *PlaygroundService) listPlaygroundGroups(ctx context.Context, userID int
 			AllowImageGeneration: group.AllowImageGeneration,
 			SupportsImage:        groupSupportsPlaygroundImage(&group),
 			Models:               []string{},
+			ModelKinds:           map[string][]string{},
 		}
 		if rate, ok := rates[group.ID]; ok && rate > 0 {
 			item.RateMultiplier = rate
@@ -538,6 +553,8 @@ func (s *PlaygroundService) listPlaygroundGroups(ctx context.Context, userID int
 				}
 				seen[name] = struct{}{}
 				item.Models = append(item.Models, name)
+				kinds, _ := classifySupportedModel(name)
+				item.ModelKinds[name] = kinds
 			}
 		}
 		out = append(out, item)

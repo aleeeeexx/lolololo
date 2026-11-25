@@ -181,7 +181,7 @@ export default {
     availableChannels: 'Available Channels',
     modelPlaza: 'Model Plaza',
     supportedModels: 'Supported Models',
-    playground: 'Playground',
+    playground: 'Direct Use',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     plugins: 'Plugins',

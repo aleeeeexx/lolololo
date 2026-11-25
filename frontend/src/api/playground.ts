@@ -31,6 +31,7 @@ export interface PlaygroundGroup {
   supports_image: boolean
   has_remaining_quota: boolean
   models: string[]
+  model_kinds?: Record<string, string[]>
 }
 
 export interface PlaygroundSession {

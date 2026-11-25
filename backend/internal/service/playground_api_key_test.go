@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
@@ -117,4 +118,39 @@ func TestEnsurePlaygroundAPIKeyRepairsUnsetGroupAndIgnoresMismatchedGroup(t *tes
 	require.Equal(t, group5, *key.GroupID)
 	require.Len(t, repo.updatedKeys, 1)
 	require.Equal(t, group5, *repo.updatedKeys[0].GroupID)
+}
+
+func TestListActivePersonalBoundGroupIDsFiltersKeys(t *testing.T) {
+	group1 := int64(1)
+	group2 := int64(2)
+	group4 := int64(4)
+	expired := time.Now().Add(-time.Hour)
+	repo := &apiKeyRepoStub{
+		allowListAllByUserID: true,
+		listAllByUserIDKeys: []APIKey{
+			{ID: 1, UserID: 7, Key: "sk-active-1", Name: "prod", GroupID: &group1, Status: StatusActive},
+			{ID: 2, UserID: 7, Key: "sk-dup", Name: "prod-dup", GroupID: &group1, Status: StatusActive},
+			{ID: 3, UserID: 7, Key: "sk-disabled", Name: "off", GroupID: &group2, Status: StatusAPIKeyDisabled},
+			{ID: 4, UserID: 7, Key: "sk-exhausted", Name: "empty", GroupID: &group2, Status: StatusAPIKeyQuotaExhausted},
+			{ID: 5, UserID: 7, Key: "sk-expired-status", Name: "old", GroupID: &group2, Status: StatusAPIKeyExpired},
+			{ID: 6, UserID: 7, Key: "sk-expired-time", Name: "stale", GroupID: &group2, Status: StatusActive, ExpiresAt: &expired},
+			{ID: 7, UserID: 7, Key: "sk-unbound", Name: "free", GroupID: nil, Status: StatusActive},
+			{ID: 8, UserID: 7, Key: "sk-play", Name: PlaygroundAPIKeyName(4), GroupID: &group4, Status: StatusActive},
+			{ID: 9, UserID: 8, Key: "sk-other-user", Name: "other", GroupID: &group2, Status: StatusActive},
+			{ID: 10, UserID: 7, Key: "sk-active-2", Name: "second", GroupID: &group2, Status: StatusActive},
+		},
+	}
+	svc := &APIKeyService{apiKeyRepo: repo}
+
+	got, err := svc.ListActivePersonalBoundGroupIDs(context.Background(), 7)
+	require.NoError(t, err)
+	require.Equal(t, map[int64]struct{}{1: {}, 2: {}}, got)
+	require.Len(t, repo.listAllByUserIDFilters, 1)
+	require.True(t, repo.listAllByUserIDFilters[0].ExcludePlaygroundKeys)
+	require.False(t, repo.listAllByUserIDFilters[0].IncludePlaygroundKeys)
+	// Confirm the method never exposes key material in the return value by type:
+	// map[int64]struct{} has no key strings.
+	for id := range got {
+		require.Contains(t, []int64{1, 2}, id)
+	}
 }

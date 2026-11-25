@@ -161,6 +161,41 @@ func playgroundAPIKeyBoundToGroup(key APIKey, groupID int64) bool {
 	return IsPlaygroundAPIKeyName(key.Name) && key.GroupID != nil && *key.GroupID == groupID
 }
 
+// ListActivePersonalBoundGroupIDs returns unique group IDs bound on the
+// user's enabled personal API keys. Hidden playground system keys, disabled
+// or expired keys, and keys with no group are excluded. The raw key material
+// is never returned.
+func (s *APIKeyService) ListActivePersonalBoundGroupIDs(ctx context.Context, userID int64) (map[int64]struct{}, error) {
+	if s == nil {
+		return nil, fmt.Errorf("api key service is not configured")
+	}
+	if userID <= 0 {
+		return map[int64]struct{}{}, nil
+	}
+	lister, ok := s.apiKeyRepo.(apiKeyAllByUserIDLister)
+	if !ok {
+		return nil, fmt.Errorf("list api keys: repository does not support listing all keys")
+	}
+	keys, err := lister.ListAllByUserID(ctx, userID, userFacingAPIKeyListFilters(APIKeyListFilters{}))
+	if err != nil {
+		return nil, fmt.Errorf("list api keys: %w", err)
+	}
+	out := make(map[int64]struct{})
+	for i := range keys {
+		key := keys[i]
+		if IsPlaygroundAPIKeyName(key.Name) {
+			continue
+		}
+		if !key.IsActive() || key.IsExpired() {
+			continue
+		}
+		if key.GroupID == nil || *key.GroupID <= 0 {
+			continue
+		}
+		out[*key.GroupID] = struct{}{}
+	}
+	return out, nil
+}
 func normalizePlaygroundListFilters(filters APIKeyListFilters) APIKeyListFilters {
 	if !filters.IncludePlaygroundKeys {
 		filters.ExcludePlaygroundKeys = true

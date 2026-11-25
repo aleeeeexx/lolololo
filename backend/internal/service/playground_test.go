@@ -92,16 +92,41 @@ func TestFormatPlaygroundDocumentPrompt(t *testing.T) {
 	require.Contains(t, prompt, "beta")
 }
 
-func TestResolveGroupRequiresIDWhenMultipleGroupsAdvertiseModel(t *testing.T) {
+type stubBoundGroupLister struct {
+	ids map[int64]struct{}
+	err error
+}
+
+func (s *stubBoundGroupLister) ListActivePersonalBoundGroupIDs(context.Context, int64) (map[int64]struct{}, error) {
+	if s == nil {
+		return map[int64]struct{}{}, nil
+	}
+	if s.err != nil {
+		return nil, s.err
+	}
+	out := make(map[int64]struct{}, len(s.ids))
+	for id := range s.ids {
+		out[id] = struct{}{}
+	}
+	return out, nil
+}
+
+func playgroundBoundIDs(ids ...int64) map[int64]struct{} {
+	out := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		out[id] = struct{}{}
+	}
+	return out
+}
+
+func TestResolveGroupRequiresGroupID(t *testing.T) {
 	lister := &stubGroupLister{groups: []Group{
 		{ID: 1, Name: "sub", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeSubscription, RateMultiplier: 1, AllowImageGeneration: true},
-		{ID: 2, Name: "payg", Platform: PlatformOpenAI, RateMultiplier: 1.5, AllowImageGeneration: true},
 	}}
 	listing := &stubAdvertiser{byGroup: map[int64][]AdvertisedModel{
 		1: {{Name: "gpt-4o"}},
-		2: {{Name: "gpt-4o"}},
 	}}
-	svc := &PlaygroundService{groups: lister, listing: listing}
+	svc := &PlaygroundService{groups: lister, boundGroups: &stubBoundGroupLister{ids: playgroundBoundIDs(1)}, listing: listing}
 
 	_, err := svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, nil)
 	require.Error(t, err)
@@ -109,13 +134,51 @@ func TestResolveGroupRequiresIDWhenMultipleGroupsAdvertiseModel(t *testing.T) {
 	require.ErrorAs(t, err, &playgroundErr)
 	require.Equal(t, "GROUP_REQUIRED", playgroundErr.Code)
 
-	groupID := int64(2)
-	got, err := svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, &groupID)
-	require.NoError(t, err)
-	require.Equal(t, int64(2), got.ID)
+	zero := int64(0)
+	_, err = svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, &zero)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &playgroundErr)
+	require.Equal(t, "GROUP_REQUIRED", playgroundErr.Code)
 }
 
-func TestResolveGroupAutoSelectsWhenOnlyOneGroupAdvertisesModel(t *testing.T) {
+func TestResolveGroupRequiresBoundAndAuthorizedGroup(t *testing.T) {
+	lister := &stubGroupLister{groups: []Group{
+		{ID: 1, Name: "sub", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeSubscription, RateMultiplier: 1, AllowImageGeneration: true},
+		{ID: 2, Name: "payg", Platform: PlatformOpenAI, RateMultiplier: 1.5, AllowImageGeneration: true},
+	}}
+	listing := &stubAdvertiser{byGroup: map[int64][]AdvertisedModel{
+		1: {{Name: "gpt-4o"}},
+		2: {{Name: "gpt-4o"}},
+		3: {{Name: "gpt-4o"}},
+	}}
+	// Group 3 is on a personal key but no longer in GetAvailableGroups (e.g. expired sub).
+	// Group 2 is available but not bound on a personal key.
+	svc := &PlaygroundService{
+		groups:      lister,
+		boundGroups: &stubBoundGroupLister{ids: playgroundBoundIDs(1, 3)},
+		listing:     listing,
+	}
+
+	unbound := int64(2)
+	_, err := svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, &unbound)
+	require.Error(t, err)
+	var playgroundErr *ErrPlayground
+	require.ErrorAs(t, err, &playgroundErr)
+	require.Equal(t, "GROUP_NOT_ALLOWED", playgroundErr.Code)
+
+	lost := int64(3)
+	_, err = svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, &lost)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &playgroundErr)
+	require.Equal(t, "GROUP_NOT_ALLOWED", playgroundErr.Code)
+
+	groupID := int64(1)
+	got, err := svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, &groupID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), got.ID)
+}
+
+func TestResolveGroupRejectsModelNotAdvertisedBySelectedGroup(t *testing.T) {
 	lister := &stubGroupLister{groups: []Group{
 		{ID: 1, Name: "sub", Platform: PlatformOpenAI},
 		{ID: 2, Name: "other", Platform: PlatformAnthropic},
@@ -124,11 +187,52 @@ func TestResolveGroupAutoSelectsWhenOnlyOneGroupAdvertisesModel(t *testing.T) {
 		1: {{Name: "gpt-4o"}},
 		2: {{Name: "claude-sonnet-4"}},
 	}}
-	svc := &PlaygroundService{groups: lister, listing: listing}
+	svc := &PlaygroundService{groups: lister, boundGroups: &stubBoundGroupLister{ids: playgroundBoundIDs(1, 2)}, listing: listing}
 
-	got, err := svc.resolveGroup(context.Background(), 7, "gpt-4o", SupportedModelKindText, nil)
+	groupID := int64(1)
+	_, err := svc.resolveGroup(context.Background(), 7, "claude-sonnet-4", SupportedModelKindText, &groupID)
+	require.Error(t, err)
+	var playgroundErr *ErrPlayground
+	require.ErrorAs(t, err, &playgroundErr)
+	require.Equal(t, "MODEL_NOT_ALLOWED", playgroundErr.Code)
+}
+
+func TestListPlaygroundGroupsOnlyIncludesBoundAuthorizedGroups(t *testing.T) {
+	lister := &stubGroupLister{groups: []Group{
+		{ID: 1, Name: "bound-sub", Platform: PlatformOpenAI, SubscriptionType: SubscriptionTypeSubscription, RateMultiplier: 1, AllowImageGeneration: true},
+		{ID: 2, Name: "unbound", Platform: PlatformOpenAI, RateMultiplier: 1.2, AllowImageGeneration: true},
+		{ID: 4, Name: "bound-payg", Platform: PlatformOpenAI, RateMultiplier: 0.8, AllowImageGeneration: false},
+	}}
+	listing := &stubAdvertiser{byGroup: map[int64][]AdvertisedModel{
+		1: {{Name: "gpt-4o"}, {Name: "dall-e-3"}, {Name: "gpt-4o"}},
+		2: {{Name: "gpt-4o"}},
+		4: {{Name: "gpt-4o-mini"}},
+	}}
+	svc := &PlaygroundService{
+		groups:      lister,
+		boundGroups: &stubBoundGroupLister{ids: playgroundBoundIDs(1, 3, 4)},
+		listing:     listing,
+	}
+
+	got, err := svc.listPlaygroundGroups(context.Background(), 7, []PlaygroundSubscription{
+		{GroupID: 1, DailyLimitUSD: 10, DailyUsedUSD: 1},
+	})
 	require.NoError(t, err)
-	require.Equal(t, int64(1), got.ID)
+	require.Len(t, got, 2)
+	require.Equal(t, int64(1), got[0].ID)
+	require.Equal(t, []string{"gpt-4o", "dall-e-3"}, got[0].Models)
+	require.Equal(t, []string{SupportedModelKindText}, got[0].ModelKinds["gpt-4o"])
+	require.Equal(t, []string{SupportedModelKindImage}, got[0].ModelKinds["dall-e-3"])
+	require.True(t, got[0].HasRemainingQuota)
+	require.True(t, got[0].SupportsImage)
+	require.Equal(t, int64(4), got[1].ID)
+	require.Equal(t, []string{"gpt-4o-mini"}, got[1].Models)
+	require.False(t, got[1].SupportsImage)
+
+	svc.boundGroups = &stubBoundGroupLister{ids: playgroundBoundIDs()}
+	empty, err := svc.listPlaygroundGroups(context.Background(), 7, nil)
+	require.NoError(t, err)
+	require.Empty(t, empty)
 }
 
 func TestIsAllowedPlaygroundImageURLRejectsPrivateAndNonHTTPS(t *testing.T) {

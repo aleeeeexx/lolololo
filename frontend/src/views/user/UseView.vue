@@ -43,6 +43,13 @@
         </div>
       </div>
 
+      <div v-if="session && !boundGroups.length" class="card p-4" data-testid="playground-need-key">
+        <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('playground.needPersonalKey') }}</p>
+        <router-link :to="{ name: 'Keys' }" class="btn btn-secondary mt-3 inline-flex">
+          {{ t('playground.goToKeys') }}
+        </router-link>
+      </div>
+
       <div class="flex gap-2" role="tablist" :aria-label="t('playground.title')">
         <button
           type="button"
@@ -71,13 +78,13 @@
       <div v-if="tab === 'chat'" class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <div class="card flex min-h-[32rem] flex-col overflow-hidden">
           <div class="flex flex-wrap items-end gap-3 border-b border-gray-100 p-4 dark:border-gray-800">
-            <div class="min-w-[16rem] flex-1">
-              <label class="input-label">{{ t('playground.model') }}</label>
-              <Select v-model="chatModel" :options="chatModelOptions" :placeholder="t('playground.selectChatModel')" />
-            </div>
             <div class="min-w-[14rem] flex-1">
               <label class="input-label">{{ t('playground.group') }}</label>
               <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" />
+            </div>
+            <div class="min-w-[16rem] flex-1">
+              <label class="input-label">{{ t('playground.model') }}</label>
+              <Select v-model="chatModel" :options="chatModelOptions" :placeholder="t('playground.selectChatModel')" />
             </div>
             <button type="button" class="btn btn-secondary" @click="startNewChat">{{ t('playground.newConversation') }}</button>
           </div>
@@ -176,12 +183,12 @@
         <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div class="space-y-4">
             <div>
-              <label class="input-label">{{ t('playground.model') }}</label>
-              <Select v-model="imageModel" :options="imageModelOptions" :placeholder="t('playground.selectImageModel')" />
-            </div>
-            <div>
               <label class="input-label">{{ t('playground.group') }}</label>
               <Select v-model="selectedGroupId" :options="groupOptions" :placeholder="t('playground.selectGroup')" />
+            </div>
+            <div>
+              <label class="input-label">{{ t('playground.model') }}</label>
+              <Select v-model="imageModel" :options="imageModelOptions" :placeholder="t('playground.selectImageModel')" />
             </div>
             <div>
               <label class="input-label">{{ t('playground.imagePrompt') }}</label>
@@ -225,7 +232,6 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
-import { getSupportedModels, type SupportedModelItem } from '@/api/supportedModels'
 import {
   fetchPlaygroundImageContent,
   getPlaygroundImageTask,
@@ -249,8 +255,9 @@ import {
 } from '@/utils/playgroundHistory'
 import {
   appendPlaygroundAttachmentText,
-  groupsForPlaygroundModel,
+  modelsForPlaygroundGroup,
   pickDefaultPlaygroundGroup,
+  retainOrPickPlaygroundModel,
 } from '@/utils/playgroundGroups'
 import { formatMultiplier } from '@/utils/formatters'
 
@@ -260,7 +267,6 @@ const authStore = useAuthStore()
 const tab = ref<'chat' | 'image'>('chat')
 const session = ref<PlaygroundSession | null>(null)
 const sessionLoading = ref(false)
-const models = ref<SupportedModelItem[]>([])
 const lastCost = ref<number | null>(null)
 const costStatus = ref('')
 const chatModel = ref('')
@@ -286,26 +292,26 @@ let pollTimer: number | null = null
 const userId = computed(() => authStore.user?.id ?? 0)
 const maxDocuments = computed(() => session.value?.limits.max_documents ?? 3)
 const maxDocumentBytes = computed(() => session.value?.limits.max_document_bytes ?? 5 * 1024 * 1024)
-const chatModels = computed(() => models.value.filter((item) => (item.kinds || ['text']).includes('text') && !(item.kinds || []).includes('image') && !(item.kinds || []).includes('video')))
-const imageModels = computed(() => models.value.filter((item) => (item.kinds || []).includes('image')))
-const chatModelOptions = computed<SelectOption[]>(() => chatModels.value.map((item) => ({ value: item.name, label: item.name })))
-const imageModelOptions = computed<SelectOption[]>(() => imageModels.value.map((item) => ({ value: item.name, label: item.name })))
-const activeModel = computed(() => tab.value === 'image' ? imageModel.value : chatModel.value)
-const availableGroups = computed(() => groupsForPlaygroundModel(session.value?.groups, activeModel.value, tab.value))
-const groupOptions = computed<SelectOption[]>(() => availableGroups.value.map((item) => ({
+const boundGroups = computed(() => session.value?.groups ?? [])
+const selectedGroup = computed(() => boundGroups.value.find((item) => item.id === selectedGroupId.value))
+const chatModels = computed(() => modelsForPlaygroundGroup(selectedGroup.value, 'chat'))
+const imageModels = computed(() => modelsForPlaygroundGroup(selectedGroup.value, 'image'))
+const chatModelOptions = computed<SelectOption[]>(() => chatModels.value.map((name) => ({ value: name, label: name })))
+const imageModelOptions = computed<SelectOption[]>(() => imageModels.value.map((name) => ({ value: name, label: name })))
+const groupOptions = computed<SelectOption[]>(() => boundGroups.value.map((item) => ({
   value: item.id,
   label: groupLabel(item),
 })))
 const canSend = computed(() => !chatSending.value && !!chatModel.value && selectedGroupId.value != null && (!!draft.value.trim() || attachments.value.length > 0))
 const canGenerateImage = computed(() => !imageBusy.value && !!imageModel.value && selectedGroupId.value != null && !!imagePrompt.value.trim())
 const chatEmptyLabel = computed(() => {
+  if (!boundGroups.value.length) return t('playground.needPersonalKey')
   if (!chatModels.value.length) return t('playground.noChatModels')
-  if (!availableGroups.value.length) return t('playground.noAvailableGroup')
   return t('playground.emptyChat')
 })
 const imageEmptyLabel = computed(() => {
+  if (!boundGroups.value.length) return t('playground.needPersonalKey')
   if (!imageModels.value.length) return t('playground.noImageModels')
-  if (!availableGroups.value.length) return t('playground.noAvailableGroup')
   return t('playground.imageEmpty')
 })
 const imageStatusLabel = computed(() => imageStatus.value === 'polling' ? t('playground.polling') : t('playground.generating'))
@@ -325,7 +331,7 @@ function groupLabel(item: { name: string; subscription_type: boolean; has_remain
 }
 
 function syncSelectedGroup() {
-  const groups = availableGroups.value
+  const groups = boundGroups.value
   if (!groups.length) {
     selectedGroupId.value = null
     return
@@ -336,26 +342,22 @@ function syncSelectedGroup() {
   selectedGroupId.value = pickDefaultPlaygroundGroup(groups)?.id ?? groups[0].id
 }
 
+function syncSelectedModels() {
+  chatModel.value = retainOrPickPlaygroundModel(chatModels.value, chatModel.value)
+  imageModel.value = retainOrPickPlaygroundModel(imageModels.value, imageModel.value)
+}
+
 async function loadSession() {
   sessionLoading.value = true
   try {
     session.value = await getPlaygroundSession()
+    syncSelectedGroup()
+    syncSelectedModels()
   } catch (error) {
     chatError.value = chatError.value || t('playground.loadSessionFailed')
     console.error(error)
   } finally {
     sessionLoading.value = false
-  }
-}
-
-async function loadModels() {
-  try {
-    models.value = await getSupportedModels()
-    if (!chatModel.value && chatModels.value[0]) chatModel.value = chatModels.value[0].name
-    if (!imageModel.value && imageModels.value[0]) imageModel.value = imageModels.value[0].name
-  } catch (error) {
-    chatError.value = t('playground.loadModelsFailed')
-    console.error(error)
   }
 }
 
@@ -595,7 +597,14 @@ watch(userId, (id) => {
   if (!conversations.value.length) startNewChat()
 }, { immediate: true })
 
-watch([tab, chatModel, imageModel, session], syncSelectedGroup, { immediate: true })
+watch(session, () => {
+  syncSelectedGroup()
+  syncSelectedModels()
+})
+
+watch([selectedGroupId, tab], () => {
+  syncSelectedModels()
+})
 
 onBeforeUnmount(() => {
   chatAbort?.abort()
@@ -605,6 +614,6 @@ onBeforeUnmount(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadSession(), loadModels()])
+  await loadSession()
 })
 </script>
