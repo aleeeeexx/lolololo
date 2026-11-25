@@ -460,5 +460,15 @@ export default {
     adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.'
   },
 
+  officialSavings: {
+    cheaper: '{percent}% cheaper than official pricing',
+    cheaperMinimum: 'A minimum of {percent}% cheaper than official pricing',
+    notCheaper: 'Current pricing is not cheaper than official rates',
+    baseline: 'Calculated at the official exchange rate of 1 USD = 6.8 CNY.',
+    baselineMinHint: 'Calculated at the official exchange rate of 1 USD = 6.8 CNY. When groups use different rates, this is for the group that is cheapest versus official (the lowest rate).',
+    groupCheaper: '{name} at {rate}x, {percent}% cheaper than official pricing',
+    groupNotCheaper: '{name} at {rate}x, not cheaper than official pricing'
+  },
+
   // Dashboard
 }

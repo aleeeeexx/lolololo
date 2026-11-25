@@ -81,6 +81,12 @@
         </span>
         <h1 class="hero-title [overflow-wrap:anywhere]">{{ siteName }}</h1>
         <p class="mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-base text-[color:var(--foreground-secondary)]">{{ siteSubtitle }}</p>
+        <OfficialSavingsCallout
+          v-if="publicRateGroups.length > 0"
+          class="mt-5 text-left sm:text-center"
+          variant="hero"
+          :groups="publicRateGroups"
+        />
         <router-link
           :to="isAuthenticated ? dashboardPath : '/login'"
           class="btn btn-primary mt-8"
@@ -207,9 +213,18 @@
             <h1 class="hero-title mb-4">
               {{ siteName }}
             </h1>
-            <p class="mb-8 text-base text-[color:var(--foreground-secondary)] md:text-lg">
+            <p
+              class="text-base text-[color:var(--foreground-secondary)] md:text-lg"
+              :class="publicRateGroups.length > 0 ? 'mb-4' : 'mb-8'"
+            >
               {{ siteSubtitle }}
             </p>
+            <OfficialSavingsCallout
+              v-if="publicRateGroups.length > 0"
+              class="mb-8 lg:text-left"
+              variant="hero"
+              :groups="publicRateGroups"
+            />
 
             <!-- CTA Button -->
             <div>
@@ -502,7 +517,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import OfficialSavingsCallout from '@/components/common/OfficialSavingsCallout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { getPublicGroupRates, type PublicGroupRate } from '@/api/publicGroupRates'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { DEFAULT_SITE_NAME, DEFAULT_SITE_SUBTITLE } from '@/constants/branding'
@@ -572,6 +589,17 @@ function initTheme() {
   }
 }
 
+const publicRateGroups = ref<PublicGroupRate[]>([])
+
+async function loadPublicGroupRates() {
+  try {
+    publicRateGroups.value = await getPublicGroupRates()
+  } catch (err: unknown) {
+    console.error('Failed to load public group rates:', err)
+    publicRateGroups.value = []
+  }
+}
+
 onMounted(() => {
   initTheme()
 
@@ -582,6 +610,8 @@ onMounted(() => {
   if (!appStore.publicSettingsLoaded) {
     appStore.fetchPublicSettings()
   }
+
+  void loadPublicGroupRates()
 })
 </script>
 

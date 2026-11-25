@@ -28,3 +28,18 @@ func RegisterModelPlazaRoutes(
 		plaza.GET("", h.ModelPlaza.Get)
 	}
 }
+
+// RegisterPublicGroupRateRoutes registers the public group-rate endpoint used
+// by the homepage savings claim. It is independent of the model-plaza switch
+// and does not require authentication.
+func RegisterPublicGroupRateRoutes(
+	v1 *gin.RouterGroup,
+	h *handler.Handlers,
+	panelRateLimiter *middleware.PanelRateLimiter,
+) {
+	public := v1.Group("/public")
+	public.Use(panelRateLimiter.PublicIP())
+	{
+		public.GET("/group-rates", h.ModelPlaza.GetPublicGroupRates)
+	}
+}

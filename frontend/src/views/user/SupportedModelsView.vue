@@ -1,6 +1,11 @@
 <template>
   <AppLayout>
     <div class="space-y-5">
+      <OfficialSavingsCallout
+        v-if="pricedGroups.length > 0"
+        :groups="pricedGroups"
+        show-groups
+      />
       <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div class="relative w-full sm:w-80">
           <Icon
@@ -146,9 +151,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import OfficialSavingsCallout from '@/components/common/OfficialSavingsCallout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { getAvailable, getUserGroupRates } from '@/api/groups'
 import { getSupportedModels } from '@/api/supportedModels'
 import { useClipboard } from '@/composables/useClipboard'
+import type { Group } from '@/types'
 import {
   filterSupportedModels,
   listSupportedModelCompanies,
@@ -161,6 +169,8 @@ const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
 
 const models = ref<SupportedModelItem[]>([])
+const availableGroups = ref<Group[]>([])
+const userRates = ref<Record<number, number>>({})
 const loading = ref(false)
 const loadFailed = ref(false)
 const loaded = ref(false)
@@ -198,6 +208,18 @@ const filteredModels = computed(() =>
 )
 
 const sourceHint = computed(() => (loaded.value ? t('supportedModels.sourceHint') : ''))
+
+const pricedGroups = computed(() =>
+  availableGroups.value.map((group) => ({
+    name: group.name,
+    rate_multiplier: group.rate_multiplier,
+    user_rate_multiplier: userRates.value[group.id],
+    image_rate_independent: group.image_rate_independent,
+    image_rate_multiplier: group.image_rate_multiplier,
+    video_rate_independent: group.video_rate_independent,
+    video_rate_multiplier: group.video_rate_multiplier,
+  })),
+)
 
 function companyLabel(company: string): string {
   switch (company) {
@@ -265,12 +287,21 @@ async function loadModels() {
   loadFailed.value = false
   loaded.value = false
   try {
-    models.value = await loadSupportedModels({ getSupportedModels })
+    const [modelList, groups, rates] = await Promise.all([
+      loadSupportedModels({ getSupportedModels }),
+      getAvailable().catch(() => [] as Group[]),
+      getUserGroupRates().catch(() => ({} as Record<number, number>)),
+    ])
+    models.value = modelList
+    availableGroups.value = Array.isArray(groups) ? groups : []
+    userRates.value = rates ?? {}
     loaded.value = true
   } catch (err: unknown) {
     console.error('Failed to load supported models:', err)
     loadFailed.value = true
     models.value = []
+    availableGroups.value = []
+    userRates.value = {}
   } finally {
     loading.value = false
   }

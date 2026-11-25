@@ -3,12 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SupportedModelsView from '../SupportedModelsView.vue'
 import type { SupportedModelItem } from '@/api/supportedModels'
 
-const { getSupportedModels, copyToClipboard } = vi.hoisted(() => ({
+const { getSupportedModels, getAvailable, getUserGroupRates, copyToClipboard } = vi.hoisted(() => ({
   getSupportedModels: vi.fn(),
+  getAvailable: vi.fn(),
+  getUserGroupRates: vi.fn(),
   copyToClipboard: vi.fn(),
 }))
 
 vi.mock('@/api/supportedModels', () => ({ getSupportedModels }))
+vi.mock('@/api/groups', () => ({ getAvailable, getUserGroupRates }))
 vi.mock('@/composables/useClipboard', () => ({ useClipboard: () => ({ copyToClipboard }) }))
 vi.mock('@/components/layout/AppLayout.vue', () => ({ default: { template: '<main><slot /></main>' } }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => {
@@ -38,9 +41,32 @@ function render() {
   return wrapper
 }
 
+const defaultGroups = [
+  {
+    id: 1,
+    name: 'default',
+    rate_multiplier: 1,
+    image_rate_independent: false,
+    image_rate_multiplier: 1,
+    video_rate_independent: false,
+    video_rate_multiplier: 1,
+  },
+  {
+    id: 2,
+    name: 'promo',
+    rate_multiplier: 0.5,
+    image_rate_independent: false,
+    image_rate_multiplier: 1,
+    video_rate_independent: false,
+    video_rate_multiplier: 1,
+  },
+]
+
 beforeEach(() => {
   vi.clearAllMocks()
   getSupportedModels.mockResolvedValue(catalog(defaultCatalog))
+  getAvailable.mockResolvedValue(defaultGroups)
+  getUserGroupRates.mockResolvedValue({})
   copyToClipboard.mockResolvedValue(true)
 })
 
@@ -145,6 +171,26 @@ describe('SupportedModelsView', () => {
     const wrapper = render()
     await flushPromises()
     expect(wrapper.get('[data-testid="supported-models-error"]').text()).toBe('supportedModels.loadFailed')
+    errorSpy.mockRestore()
+  })
+
+  it('shows official savings from the cheapest available group versus official', async () => {
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('officialSavings.cheaperMinimum')
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('"percent":93')
+    expect(wrapper.get('[data-testid="official-savings-groups"]').text()).toContain('officialSavings.groupCheaper')
+    expect(getAvailable).toHaveBeenCalledTimes(1)
+    expect(getUserGroupRates).toHaveBeenCalledTimes(1)
+  })
+
+  it('still lists models when group rates fail to load', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getAvailable.mockRejectedValueOnce(new Error('groups down'))
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="supported-model-gpt-4o"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="official-savings"]').exists()).toBe(false)
     errorSpy.mockRestore()
   })
 })

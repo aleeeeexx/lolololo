@@ -582,3 +582,42 @@ func TestListGroups_TimePricingPassthrough(t *testing.T) {
 	// 展示单价为标准时段价
 	require.InDelta(t, 0.28e-6, *m.Pricing.InputPrice, 1e-15)
 }
+
+func TestPublicGroupRatesFromActive_OmitsExclusiveAndSorts(t *testing.T) {
+	out := PublicGroupRatesFromActive([]Group{
+		{ID: 3, Name: "zeta", RateMultiplier: 1.0, IsExclusive: false},
+		{ID: 1, Name: "alpha", RateMultiplier: 0.5, IsExclusive: true},
+		{ID: 2, Name: "beta", RateMultiplier: 0.8, ImageRateIndependent: true, ImageRateMultiplier: 1.2, VideoRateIndependent: true, VideoRateMultiplier: 0.4},
+		{ID: 4, Name: "beta", RateMultiplier: 0.9},
+	})
+	require.Len(t, out, 3)
+	require.Equal(t, int64(2), out[0].ID)
+	require.Equal(t, "beta", out[0].Name)
+	require.True(t, out[0].ImageRateIndependent)
+	require.Equal(t, 1.2, out[0].ImageRateMultiplier)
+	require.True(t, out[0].VideoRateIndependent)
+	require.Equal(t, 0.4, out[0].VideoRateMultiplier)
+	require.Equal(t, int64(4), out[1].ID)
+	require.Equal(t, "beta", out[1].Name)
+	require.Equal(t, int64(3), out[2].ID)
+	require.Equal(t, "zeta", out[2].Name)
+}
+
+func TestListPublicGroupRates_UsesActiveGroups(t *testing.T) {
+	svc := newPlazaService(nil, []Group{
+		{ID: 10, Name: "public", RateMultiplier: 1, IsExclusive: false},
+		{ID: 11, Name: "secret", RateMultiplier: 0.1, IsExclusive: true},
+	}, nil)
+	out, err := svc.ListPublicGroupRates(context.Background())
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	require.Equal(t, int64(10), out[0].ID)
+	require.Equal(t, 1.0, out[0].RateMultiplier)
+}
+
+func TestListPublicGroupRates_RepoError(t *testing.T) {
+	svc := NewModelPlazaService(nil, &stubGroupRepoForAvailable{listActiveErr: errors.New("db down")}, nil, nil, nil)
+	_, err := svc.ListPublicGroupRates(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "list active groups")
+}

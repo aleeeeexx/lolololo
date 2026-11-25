@@ -384,3 +384,57 @@ func (s *ModelPlazaService) lookupOfficialPricing(ctx context.Context, modelName
 	memo[modelName] = result
 	return result
 }
+
+// PublicGroupRate is the public, non-exclusive billing multiplier for a group.
+// It is intentionally narrower than PlazaGroup: the homepage needs current
+// rates even when the model plaza feature flag is off.
+type PublicGroupRate struct {
+	ID                   int64
+	Name                 string
+	I18n                 GroupI18n
+	RateMultiplier       float64
+	ImageRateIndependent bool
+	ImageRateMultiplier  float64
+	VideoRateIndependent bool
+	VideoRateMultiplier  float64
+}
+
+// PublicGroupRatesFromActive returns active, non-exclusive groups as a public
+// rate list, sorted by name then ID. Exclusive groups are omitted because they
+// are not a public price.
+func PublicGroupRatesFromActive(groups []Group) []PublicGroupRate {
+	out := make([]PublicGroupRate, 0, len(groups))
+	for i := range groups {
+		g := &groups[i]
+		if g.IsExclusive {
+			continue
+		}
+		out = append(out, PublicGroupRate{
+			ID:                   g.ID,
+			Name:                 g.Name,
+			I18n:                 g.I18n,
+			RateMultiplier:       g.RateMultiplier,
+			ImageRateIndependent: g.ImageRateIndependent,
+			ImageRateMultiplier:  g.ImageRateMultiplier,
+			VideoRateIndependent: g.VideoRateIndependent,
+			VideoRateMultiplier:  g.VideoRateMultiplier,
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+// ListPublicGroupRates returns billing multipliers for publicly visible groups
+// (active and non-exclusive). This is independent of the model-plaza switch.
+func (s *ModelPlazaService) ListPublicGroupRates(ctx context.Context) ([]PublicGroupRate, error) {
+	groups, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active groups: %w", err)
+	}
+	return PublicGroupRatesFromActive(groups), nil
+}

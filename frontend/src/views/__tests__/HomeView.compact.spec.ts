@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount, RouterLinkStub } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 
 import HomeView from '../HomeView.vue'
 
@@ -29,11 +29,22 @@ vi.mock('@/stores/app', () => ({
   useAppStore: () => appStore,
 }))
 
+const { getPublicGroupRates } = vi.hoisted(() => ({
+  getPublicGroupRates: vi.fn(),
+}))
+
+vi.mock('@/api/publicGroupRates', () => ({ getPublicGroupRates }))
+
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
   return {
     ...actual,
-    useI18n: () => ({ t: (key: string) => key }),
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (!params) return key
+        return `${key}:${JSON.stringify(params)}`
+      },
+    }),
   }
 })
 
@@ -87,6 +98,27 @@ describe('HomeView compact mode', () => {
     authStore.user = null
     authStore.checkAuth.mockClear()
     appStore.fetchPublicSettings.mockClear()
+    getPublicGroupRates.mockReset()
+    getPublicGroupRates.mockResolvedValue([
+      {
+        id: 1,
+        name: 'default',
+        rate_multiplier: 1,
+        image_rate_independent: false,
+        image_rate_multiplier: 1,
+        video_rate_independent: false,
+        video_rate_multiplier: 1,
+      },
+      {
+        id: 2,
+        name: 'promo',
+        rate_multiplier: 0.5,
+        image_rate_independent: false,
+        image_rate_multiplier: 1,
+        video_rate_independent: false,
+        video_rate_multiplier: 1,
+      },
+    ])
     localStorage.clear()
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
   })
@@ -199,5 +231,29 @@ describe('HomeView compact mode', () => {
     })
 
     expect(modelPlazaDestination(wrapper)).toBeUndefined()
+  })
+
+  it('shows official savings from the cheapest public group on the compact homepage', async () => {
+    const wrapper = mountHome({ compact_home_enabled: true })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('officialSavings.cheaperMinimum')
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('"percent":93')
+  })
+
+  it('shows official savings from the cheapest public group on the default homepage', async () => {
+    const wrapper = mountHome()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="compact-home"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('officialSavings.cheaperMinimum')
+    expect(wrapper.get('[data-testid="official-savings-title"]').text()).toContain('"percent":93')
+  })
+
+  it('omits the savings claim when public group rates cannot be loaded', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    getPublicGroupRates.mockRejectedValueOnce(new Error('network'))
+    const wrapper = mountHome()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="official-savings"]').exists()).toBe(false)
+    errorSpy.mockRestore()
   })
 })

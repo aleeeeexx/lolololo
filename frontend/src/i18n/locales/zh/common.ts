@@ -459,5 +459,15 @@ export default {
     adminApiKeyForbidden: '管理 API Key 无法执行此操作，请使用已通过二次验证的管理员会话。'
   },
 
+  officialSavings: {
+    cheaper: '相对官方便宜 {percent}%',
+    cheaperMinimum: '最低比官方便宜 {percent}%',
+    notCheaper: '当前计价不低于官方水平',
+    baseline: '按官方汇率 1 美元 = 6.8 元计算。',
+    baselineMinHint: '按官方汇率 1 美元 = 6.8 元计算。不同分组倍率不同时，按比官方最便宜的分组（最低倍率）计算。',
+    groupCheaper: '{name} {rate}x，相对官方便宜 {percent}%',
+    groupNotCheaper: '{name} {rate}x，不低于官方水平'
+  },
+
   // Dashboard
 }

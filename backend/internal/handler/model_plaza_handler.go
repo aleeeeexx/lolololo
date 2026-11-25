@@ -267,3 +267,54 @@ func toModelPlazaOfficialPricing(p *service.PlazaOfficialPricing) *modelPlazaOff
 		Intervals:          toUserPricingIntervals(p.Intervals),
 	}
 }
+
+// publicGroupRate is the whitelist DTO for publicly visible group multipliers.
+type publicGroupRate struct {
+	ID                   int64   `json:"id"`
+	Name                 string  `json:"name"`
+	RateMultiplier       float64 `json:"rate_multiplier"`
+	ImageRateIndependent bool    `json:"image_rate_independent"`
+	ImageRateMultiplier  float64 `json:"image_rate_multiplier"`
+	VideoRateIndependent bool    `json:"video_rate_independent"`
+	VideoRateMultiplier  float64 `json:"video_rate_multiplier"`
+}
+
+type publicGroupRatesResponse struct {
+	Groups []publicGroupRate `json:"groups"`
+}
+
+// GetPublicGroupRates returns billing multipliers for active, non-exclusive groups.
+// GET /api/v1/public/group-rates
+//
+// This endpoint is public and is not gated by the model-plaza feature flag, so
+// the homepage can show "how much cheaper vs official" even when the plaza is off.
+func (h *ModelPlazaHandler) GetPublicGroupRates(c *gin.Context) {
+	if h.plazaService == nil {
+		response.InternalError(c, "Service unavailable")
+		return
+	}
+	groups, err := h.plazaService.ListPublicGroupRates(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	c.Writer.Header().Add("Vary", "Accept-Language")
+	response.Success(c, publicGroupRatesResponse{Groups: toPublicGroupRateDTOs(groups, c.GetHeader("Accept-Language"))})
+}
+
+func toPublicGroupRateDTOs(groups []service.PublicGroupRate, acceptLanguage string) []publicGroupRate {
+	out := make([]publicGroupRate, 0, len(groups))
+	for i := range groups {
+		out = append(out, publicGroupRate{
+			ID:                   groups[i].ID,
+			Name:                 groups[i].I18n.LocalizeName(acceptLanguage, groups[i].Name),
+			RateMultiplier:       groups[i].RateMultiplier,
+			ImageRateIndependent: groups[i].ImageRateIndependent,
+			ImageRateMultiplier:  groups[i].ImageRateMultiplier,
+			VideoRateIndependent: groups[i].VideoRateIndependent,
+			VideoRateMultiplier:  groups[i].VideoRateMultiplier,
+		})
+	}
+	return out
+}
