@@ -22,7 +22,7 @@
           <i18n-t keypath="playground.clientTip" tag="span" scope="global">
             <template #handbookLink>
               <router-link
-                :to="{ name: 'Handbook', hash: '#quick-examples' }"
+                :to="{ name: 'Handbook' }"
                 class="font-medium underline underline-offset-2 hover:text-sky-700 dark:hover:text-white"
               >
                 {{ t('playground.clientTipLink') }}

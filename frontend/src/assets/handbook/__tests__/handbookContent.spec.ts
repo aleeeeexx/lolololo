@@ -44,28 +44,44 @@ describe('handbook brand migration', () => {
     expect(zip.subarray(0, 2).toString()).toBe('PK')
   })
 
-  it('puts short quick-start examples before account registration', () => {
-    const quickAt = handbookZh.indexOf('id="quick-examples"')
-    const registerAt = handbookZh.indexOf('id="register"')
-    expect(quickAt).toBeGreaterThan(0)
-    expect(quickAt).toBeLessThan(registerAt)
-    expect(handbookZh).toContain('id="quick-ex-gpt"')
-    expect(handbookZh).toContain('不要登录 Codex')
-    expect(handbookZh).toContain('重启 Codex')
-    expect(handbookZh).toContain('id="quick-ex-claude"')
-    expect(handbookZh).toContain('id="quick-ex-use"')
-    expect(handbookZh).toContain('href="/use"')
-    expect(handbookZh).toContain('href="#keys"')
-    expect(handbookZh).toContain('href="#download"')
-    expect(handbookZh).toContain('href="#config-gpt"')
-    expect(handbookZh).toContain('href="#claude-ccswitch"')
-    expect(handbookZh).toContain('href="#use-client"')
-    expect(handbookZh).toContain('带有<code>gpt-</code>的')
-    expect(handbookZh).toContain('带有<code>claude-</code>的')
-    expect(handbookZh).toContain('再运行<code>claude</code>。')
-    expect(handbookZh).toContain('Codex 官网')
-    expect(handbookZh).toContain('后文「Codex 客户端」')
-    expect(handbookZh).not.toContain('详见Codex')
-    expect(handbookZh).not.toContain('详见<a href="#use-client">Codex 客户端</a>')
+  it('does not include the removed quick-start examples section', () => {
+    expect(handbookZh).not.toContain('id="quick-examples"')
+    expect(handbookZh).not.toContain('id="quick-ex-gpt"')
+    expect(handbookZh).not.toContain('id="quick-ex-claude"')
+    expect(handbookZh).not.toContain('id="quick-ex-use"')
+    expect(handbookZh).not.toContain('#quick-examples')
+    expect(handbookZh).not.toContain('极简示例')
+  })
+
+  it('does not include a dedicated CC Switch /v1 address-note section', () => {
+    expect(handbookZh).not.toContain('id="ccswitch-api-url"')
+    expect(handbookZh).not.toContain('#ccswitch-api-url')
+    expect(handbookZh).not.toContain('注意事项：API 请求地址不要漏掉 /v1')
+  })
+
+  it('leaves no #quick-examples or #ccswitch-api-url links in non-test frontend source', () => {
+    const srcRoot = join(process.cwd(), 'src')
+    const files: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (entry.name === '__tests__' || entry.name === 'node_modules') continue
+          walk(full)
+        } else if (/\.(vue|ts|tsx|js|html)$/.test(entry.name)) {
+          files.push(full)
+        }
+      }
+    }
+    walk(srcRoot)
+    expect(files.length).toBeGreaterThan(0)
+    for (const file of files) {
+      const text = readFileSync(file, 'utf8')
+      expect(text, file).not.toContain('#quick-examples')
+      expect(text, file).not.toContain('id="quick-examples"')
+      expect(text, file).not.toContain('极简示例')
+      expect(text, file).not.toContain('#ccswitch-api-url')
+      expect(text, file).not.toContain('id="ccswitch-api-url"')
+    }
   })
 })

@@ -11,10 +11,6 @@ export default {
     'This uses the same address logic as the API keys page (“Use key” / “Import to CC Switch”): the configured API endpoint if set, otherwise the current site origin.',
   backHome: 'Back to home',
   sections: {
-    'quick-examples': 'Quick start examples',
-    'quick-ex-gpt': 'Want to use GPT (Codex)',
-    'quick-ex-claude': 'Want to use Claude Code',
-    'quick-ex-use': 'Use it in the browser (no client)',
     register: '1. Create an account',
     keys: '2. Create an API key',
     download: '3. Download and install CC Switch',

@@ -10,10 +10,6 @@ export default {
   apiBaseHint: '与密钥页「使用密钥 / 导入到 CC Switch」使用同一套地址逻辑：优先用站点配置的 API 端点，否则用当前访问域名。',
   backHome: '返回首页',
   sections: {
-    'quick-examples': '极简示例',
-    'quick-ex-gpt': '想用 GPT（Codex）',
-    'quick-ex-claude': '想用 Claude Code',
-    'quick-ex-use': '不装客户端，在浏览器里直接用',
     register: '一、注册账号',
     keys: '二、新建密钥',
     download: '三、下载并安装 CC Switch',
