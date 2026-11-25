@@ -70,12 +70,12 @@
         </router-link>
       </div>
 
-      <div class="flex gap-2" role="tablist" :aria-label="t('playground.title')">
+      <div class="playground-mode-tabs" role="tablist" :aria-label="t('playground.title')">
         <button
           type="button"
           role="tab"
-          class="supported-model-pill"
-          :class="tab === 'chat' ? 'supported-model-pill-active' : ''"
+          class="playground-mode-tab"
+          :class="tab === 'chat' ? 'playground-mode-tab-active' : ''"
           :aria-selected="tab === 'chat'"
           data-testid="playground-tab-chat"
           @click="tab = 'chat'"
@@ -85,8 +85,8 @@
         <button
           type="button"
           role="tab"
-          class="supported-model-pill"
-          :class="tab === 'image' ? 'supported-model-pill-active' : ''"
+          class="playground-mode-tab"
+          :class="tab === 'image' ? 'playground-mode-tab-active' : ''"
           :aria-selected="tab === 'image'"
           data-testid="playground-tab-image"
           @click="tab = 'image'"
@@ -670,3 +670,44 @@ onMounted(async () => {
   await loadSession()
 })
 </script>
+
+<style scoped>
+.playground-mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--surface-deep);
+}
+
+.playground-mode-tab {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--muted);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.playground-mode-tab:hover {
+  color: var(--foreground);
+}
+
+.playground-mode-tab-active,
+.playground-mode-tab-active:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+}
+
+.playground-mode-tab:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+</style>

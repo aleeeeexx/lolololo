@@ -249,3 +249,62 @@ describe('UseView playground models', () => {
     expect(wrapper.get('[data-testid="playground-chat-model-select"]').text()).not.toContain('legacy-model')
   })
 })
+
+describe('UseView mode tabs', () => {
+  function baseSession() {
+    return session([
+      {
+        id: 1,
+        name: 'openai',
+        platform: 'openai',
+        rate_multiplier: 1,
+        subscription_type: false,
+        allow_image_generation: true,
+        supports_image: true,
+        has_remaining_quota: false,
+        models: ['gpt-4o', 'dall-e-3'],
+        model_kinds: { 'gpt-4o': ['text'], 'dall-e-3': ['image'] },
+      },
+    ])
+  }
+
+  it('highlights the chat tab by default and switches the selected state to image', async () => {
+    getPlaygroundSession.mockResolvedValue(baseSession())
+
+    const wrapper = render()
+    await flushPromises()
+
+    const chatTab = wrapper.get('[data-testid="playground-tab-chat"]')
+    const imageTab = wrapper.get('[data-testid="playground-tab-image"]')
+
+    expect(chatTab.text()).toBe('playground.tabChat')
+    expect(imageTab.text()).toBe('playground.tabImage')
+    expect(chatTab.attributes('role')).toBe('tab')
+    expect(imageTab.attributes('role')).toBe('tab')
+    expect(chatTab.attributes('aria-selected')).toBe('true')
+    expect(imageTab.attributes('aria-selected')).toBe('false')
+    expect(chatTab.classes()).toContain('playground-mode-tab')
+    expect(chatTab.classes()).toContain('playground-mode-tab-active')
+    expect(imageTab.classes()).toContain('playground-mode-tab')
+    expect(imageTab.classes()).not.toContain('playground-mode-tab-active')
+    expect(wrapper.get('[role="tablist"]').classes()).toContain('playground-mode-tabs')
+    expect(wrapper.find('[data-testid="playground-chat-model-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="playground-image-model-select"]').exists()).toBe(false)
+
+    await imageTab.trigger('click')
+
+    expect(imageTab.attributes('aria-selected')).toBe('true')
+    expect(chatTab.attributes('aria-selected')).toBe('false')
+    expect(imageTab.classes()).toContain('playground-mode-tab-active')
+    expect(chatTab.classes()).not.toContain('playground-mode-tab-active')
+    expect(wrapper.find('[data-testid="playground-image-model-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="playground-chat-model-select"]').exists()).toBe(false)
+
+    await chatTab.trigger('click')
+
+    expect(chatTab.attributes('aria-selected')).toBe('true')
+    expect(imageTab.attributes('aria-selected')).toBe('false')
+    expect(chatTab.classes()).toContain('playground-mode-tab-active')
+    expect(imageTab.classes()).not.toContain('playground-mode-tab-active')
+  })
+})
