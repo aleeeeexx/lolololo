@@ -1,6 +1,38 @@
 <h1>DubDub 使用手册</h1>
-<p class="lead">操作章节在前：注册、密钥、CC Switch、各客户端、生图、Grok 媒体接口、Grok Build 与排错；文末有「小白入门」概念科普。</p>
+<p class="lead">先看下面的「极简示例」，用最短路径跑起来；更细的注册、密钥、CC Switch、各客户端、生图、Grok 与排错在后文，文末有「小白入门」概念科普。</p>
 <div class="notice">本教程面向 <strong>DubDub AI中转站</strong> 用户。请先在本站注册账号，再通过「充值/订阅」或「兑换」开通额度。API 地址请使用本页自动显示的站点根地址（兼容 OpenAI / Anthropic 风格路径，如 <code>/v1</code>）。登录后也可在侧边栏「直接用」里先试用已绑定密钥的模型，不必先配客户端。</div>
+<h2 id="quick-examples">极简示例</h2>
+<p>三条最短路径，照着做即可。细节和截图见后文对应章节。开始前请先<a href="/register">注册</a>并准备好额度（<a href="/purchase">充值/订阅</a>或<a href="/redeem">兑换</a>）。</p>
+<div class="examples">
+<section class="example">
+<h3 id="quick-ex-gpt">想用 GPT（Codex）</h3>
+<ol>
+<li>在本站 <a href="/keys">API 密钥</a>页新建一把密钥：厂商选 OpenAI，分组选带有<code>gpt-</code>的（详见<a href="#keys">二、新建密钥</a>）。立刻复制保存。</li>
+<li>到 <a href="https://openai.com/zh-Hans-CN/codex/" rel="noopener" target="_blank">Codex 官网</a>下载并安装客户端，具体步骤见<a href="#use-client">后文「Codex 客户端」</a>。</li>
+<li>下载安装 <a href="#download">CC Switch</a>。</li>
+<li><strong>不要登录 Codex</strong>。打开 CC Switch，在侧栏选 Codex，添加并启用本站供应商（上游选 Responses 原生，地址填本页显示的 <code>{{API_BASE}}</code>；详见<a href="#config-gpt">配置 CC Switch（Codex）</a>）。确认页头徽章类似「直连 · DubDub」。</li>
+<li>再<strong>重启 Codex</strong>，即可使用。</li>
+</ol>
+</section>
+<section class="example">
+<h3 id="quick-ex-claude">想用 Claude Code</h3>
+<ol>
+<li>在本站 <a href="/keys">API 密钥</a>页新建一把密钥：厂商选 Anthropic，分组选带有<code>claude-</code>的（详见<a href="#keys">二、新建密钥</a>）。立刻复制保存。</li>
+<li>安装 Claude Code（详见<a href="#claude-install">安装</a>）。</li>
+<li>下载安装 <a href="#download">CC Switch</a>。</li>
+<li>打开 CC Switch，在侧栏选 Claude Code，添加并启用本站供应商（上游选 Anthropic Messages 原生，请求地址填 <code>{{API_BASE}}</code>；详见<a href="#claude-ccswitch">用 CC Switch</a>）。确认页头徽章类似「直连 · DubDub」。</li>
+<li>直连切换后一般<strong>无需重启</strong>，不行就新开终端再运行<code>claude</code>。</li>
+</ol>
+</section>
+<section class="example">
+<h3 id="quick-ex-use">不装客户端，在浏览器里直接用</h3>
+<ol>
+<li>登录本站。若还没有密钥，先到 <a href="/keys">API 密钥</a>页建一把（「直接用」只会列出已绑定密钥的模型）。</li>
+<li>打开侧边栏「<a href="/use">直接用</a>」。</li>
+<li>在「对话」里选模型即可聊天；要生图就切到「生图」页签。无需安装任何客户端。</li>
+</ol>
+</section>
+</div>
 <h2 id="register">一、注册账号</h2>
 <ol><li>打开本站 <a href="/register">注册页面</a> 注册账号。</li><li>登录后前往「<a href="/purchase">充值/订阅</a>」或「<a href="/redeem">兑换</a>」开通额度。若注册未开放或额度未到账，请联系站点管理员。</li></ol>
 <h2 id="keys">二、新建密钥</h2>

@@ -54,7 +54,7 @@ import { useAppStore } from '@/stores'
 import { resolvePublicApiBaseUrl } from '@/utils/publicApiBaseUrl'
 import handbookZh from '@/assets/handbook/handbook.zh.html?raw'
 
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
@@ -82,12 +82,17 @@ interface TocItem {
   text: string
 }
 
+function headingTitle(id: string, fallback: string): string {
+  const key = `handbook.sections.${id}`
+  return te(key) ? String(t(key)) : fallback
+}
+
 const tocItems = computed<TocItem[]>(() => {
   const source = applyPlaceholders(handbookZh)
   const matches = source.matchAll(/<h2\s+id="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/gi)
   return [...matches].map((match) => ({
     id: match[1],
-    text: match[2].replace(/<[^>]+>/g, '').trim(),
+    text: headingTitle(match[1], match[2].replace(/<[^>]+>/g, '').trim()),
   }))
 })
 
@@ -95,10 +100,19 @@ function applyPlaceholders(source: string): string {
   return source.replace(/\{\{API_BASE\}\}/g, apiBase.value).replace(/\{\{API_HOST\}\}/g, apiHost.value)
 }
 
+function applySectionTitles(source: string): string {
+  return source.replace(/<h([23])\s+id="([^"]+)"([^>]*)>([\s\S]*?)<\/h\1>/gi, (full, level, id, attrs, inner) => {
+    const fallback = String(inner).replace(/<[^>]+>/g, '').trim()
+    const title = headingTitle(id, fallback)
+    if (title === fallback && String(inner).trim() === fallback) return full
+    return `<h${level} id="${id}"${attrs}>${title}</h${level}>`
+  })
+}
+
 const renderedHtml = computed(() => {
-  const html = applyPlaceholders(handbookZh)
+  const html = applySectionTitles(applyPlaceholders(handbookZh))
   return DOMPurify.sanitize(html, {
-    ADD_TAGS: ['figure', 'figcaption'],
+    ADD_TAGS: ['figure', 'figcaption', 'section'],
     ADD_ATTR: ['id', 'class', 'loading', 'download', 'target', 'rel', 'alt'],
   })
 })
@@ -389,7 +403,8 @@ onBeforeUnmount(() => {
 .handbook-content :deep(kbd) {
   border-radius: var(--radius-sm);
   background: var(--surface-deep);
-  padding: 2px 6px;
+  padding: 0.05em 0.25em;
+  margin: 0;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.875rem;
   color: var(--foreground);
@@ -512,5 +527,26 @@ onBeforeUnmount(() => {
 
 .handbook-content :deep(.model-ids code) {
   font-size: 0.8rem;
+}
+
+.handbook-content :deep(.examples) {
+  display: grid;
+  gap: 12px;
+  margin: 1rem 0 1.5rem;
+}
+
+.handbook-content :deep(.example) {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-deep);
+  padding: 12px 16px 16px;
+}
+
+.handbook-content :deep(.example h3) {
+  margin: 0 0 0.5rem;
+}
+
+.handbook-content :deep(.example ol) {
+  margin: 0;
 }
 </style>
