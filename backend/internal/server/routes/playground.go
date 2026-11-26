@@ -11,8 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterPlaygroundRoutes registers JWT-authenticated "使用" page APIs.
-// These routes prepare an internal API key context and then enter the existing
+// RegisterPlaygroundRoutes registers JWT-authenticated "直接用" page APIs.
+// These routes are temporarily limited to administrators (role=admin).
+// They prepare an internal API key context and then enter the existing
 // gateway handlers and billing. The browser never sends an API key.
 func RegisterPlaygroundRoutes(
 	v1 *gin.RouterGroup,
@@ -38,6 +39,7 @@ func RegisterPlaygroundRoutes(
 
 	group := v1.Group("/playground")
 	group.Use(gin.HandlerFunc(jwtAuth))
+	group.Use(middleware.AdminOnly())
 	group.Use(middleware.BackendModeUserGuard(settingService))
 	group.Use(panelRateLimiter.Global())
 	group.Use(gin.HandlerFunc(auditLog))

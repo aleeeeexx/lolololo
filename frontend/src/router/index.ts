@@ -221,7 +221,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/user/UseView.vue'),
     meta: {
       requiresAuth: true,
-      requiresAdmin: false,
+      requiresAdmin: true,
       title: 'Direct Use',
       titleKey: 'playground.title',
       descriptionKey: 'playground.description'
